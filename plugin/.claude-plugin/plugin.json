@@ -1,0 +1,29 @@
+{
+  "name": "turn-eta",
+  "displayName": "Turn ETA",
+  "version": "0.1.0",
+  "description": "Shows how long turns like this one usually take, from your own past turns, and flags when Claude is having an incident.",
+  "author": { "name": "RainDragon AI" },
+  "license": "Apache-2.0",
+  "keywords": ["eta", "duration", "status"],
+  "userConfig": {
+    "band": {
+      "type": "string",
+      "title": "Band width",
+      "description": "50 shows the middle half of similar past turns, 80 shows the middle 8 in 10 (wider, misses less often).",
+      "default": "50"
+    },
+    "show_result": {
+      "type": "boolean",
+      "title": "Show actual time",
+      "description": "After each turn, show how long it took next to the band.",
+      "default": false
+    },
+    "check_status": {
+      "type": "boolean",
+      "title": "Check Claude status",
+      "description": "Read status.claude.com (cached 2 minutes) to warn when Claude Code or the API has an incident. Nothing is sent except the request itself.",
+      "default": true
+    }
+  }
+}
