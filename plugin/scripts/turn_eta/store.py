@@ -108,3 +108,23 @@ def mark_noted(d: str, session_id: str) -> bool:
     except OSError:
         pass
     return True
+
+
+def write_json(d: str, name: str, obj: dict) -> None:
+    path = os.path.join(d, name)
+    try:
+        tmp = path + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(obj, f)
+        os.replace(tmp, path)
+    except OSError:
+        pass
+
+
+def read_json(d: str, name: str) -> Optional[dict]:
+    try:
+        with open(os.path.join(d, name)) as f:
+            v = json.load(f)
+        return v if isinstance(v, dict) else None
+    except (OSError, ValueError):
+        return None

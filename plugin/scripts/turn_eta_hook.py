@@ -5,6 +5,15 @@ UserPromptSubmit  start the clock, show the band for this turn
 Stop              stop the clock, save the turn to local history
 StopFailure       the turn failed: save it as failed so it never enters a band
 
+Also run by hand (or via the plugin's slash commands):
+  doctor            version, settings and counts -- never content -- to paste
+                    into a bug report
+  eval              how often your band held on your own history (coverage)
+                    and how wide it was, replayed in order
+
+Kill switch: the plugin option "enabled" (in /config) or TURN_ETA_OFF=1.
+Off means nothing is shown and nothing is recorded.
+
 Contract with Claude Code:
   * stdout is either empty or ONE JSON object with "systemMessage". Plain
     stdout from UserPromptSubmit would be added to the model's context, and
@@ -22,7 +31,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from turn_eta import fmt, predict, status, store  # noqa: E402
+from turn_eta import __version__, fmt, predict, status, store  # noqa: E402
 
 PREFIX = "Turn ETA: "
 MAX_TURN_SECONDS = 6 * 3600   # longer than this is a turn left open, not a duration
@@ -35,6 +44,12 @@ def _flag(env: dict, key: str, default: bool) -> bool:
     return str(v).strip().lower() in ("1", "true", "yes", "on")
 
 
+def enabled(env: dict) -> bool:
+    if str(env.get("TURN_ETA_OFF") or "").strip().lower() in ("1", "true", "yes", "on"):
+        return False
+    return _flag(env, "ENABLED", True)
+
+
 def _transcript_bytes(path) -> int:
     try:
         return os.path.getsize(path) if path else 0
@@ -42,9 +57,16 @@ def _transcript_bytes(path) -> int:
         return 0
 
 
+def _settings(env: dict) -> dict:
+    return {"enabled": enabled(env), "band": env.get("CLAUDE_PLUGIN_OPTION_BAND") or "50",
+            "show_result": _flag(env, "SHOW_RESULT", False),
+            "check_status": _flag(env, "CHECK_STATUS", True)}
+
+
 def on_prompt(inp: dict, env: dict, now: float, fetch=None) -> str:
     d = store.data_dir(env)
     store.cleanup(d, now)
+    store.write_json(d, "settings_seen.json", dict(_settings(env), at=int(now)))
     sid = inp.get("session_id") or ""
     effort = (inp.get("effort") or {}).get("level")
     pc = len(inp.get("prompt") or "")
@@ -64,13 +86,13 @@ def on_prompt(inp: dict, env: dict, now: float, fetch=None) -> str:
     store.write_pending(d, sid, {
         "prompt_id": inp.get("prompt_id"), "start": now,
         "pb": predict.prompt_bucket(pc), "cb": predict.context_bucket(tb),
-        "effort": effort, "incident": bool(incident), "cov": coverage,
+        "effort": effort, "incident": bool(incident), "cov": band.coverage if band else coverage,
         "low": band.low if band else None, "high": band.high if band else None,
     })
 
     lines = []
     if band:
-        lines.append(fmt.band_line(band.low, band.high, band.n, coverage))
+        lines.append(fmt.band_line(band.low, band.high, band.n, band.coverage, band.learning))
     elif store.mark_noted(d, sid):
         lines.append("learning your pace. Estimates start after %d turns (%d so far)."
                      % (predict.MIN_READY, predict.learned_count(history)))
@@ -103,11 +125,60 @@ def on_stop(inp: dict, env: dict, now: float, ok: bool) -> str:
     return ""
 
 
+def doctor(env: dict, now: float) -> dict:
+    """State for a bug report. Counts and settings only: no prompt text,
+    no file names, no session ids."""
+    d = store.data_dir(env)
+    h = store.read_history(d)
+    try:
+        pending = len([n for n in os.listdir(os.path.join(d, "pending")) if not n.endswith(".tmp")])
+    except OSError:
+        pending = 0
+    cache_age = None
+    try:
+        with open(os.path.join(d, "status_cache.json")) as f:
+            cache_age = round(now - float(json.load(f).get("fetched_at", 0)))
+    except (OSError, ValueError):
+        pass
+    good = predict.learned_count(h)
+    # Slash commands do not get the plugin options, so report the settings the
+    # last prompt hook saw (None before the first prompt).
+    seen = store.read_json(d, "settings_seen.json")
+    return {
+        "name": "turn-eta", "version": __version__,
+        "settings": seen,
+        "data_dir": d,
+        "turns_recorded": len(h),
+        "turns_used": good,
+        "turns_failed": sum(1 for r in h if not r.get("ok")),
+        "turns_in_incident": sum(1 for r in h if r.get("ok") and r.get("incident")),
+        "phase": ("learning (no band yet)" if good < predict.MIN_READY
+                  else "learning (wide band)" if good < predict.CONFIDENT else "ready"),
+        "turns_in_progress": pending,
+        "status_cache_age_s": cache_age,
+        "python": sys.version.split()[0],
+    }
+
+
 def main(argv, stdin, stdout, env, now=None) -> int:
     try:
         event = argv[1] if len(argv) > 1 else ""
-        inp = json.loads(stdin.read() or "{}")
         now = time.time() if now is None else now
+        # Slash commands pass the data dir as an argument: they do not get
+        # CLAUDE_PLUGIN_DATA in their environment, only as text substitution.
+        if len(argv) > 3 and argv[2] == "--data" and argv[3]:
+            env = dict(env, CLAUDE_PLUGIN_DATA=argv[3])
+        if event == "doctor":
+            stdout.write(json.dumps(doctor(env, now), indent=2) + "\n")
+            return 0
+        if event == "eval":
+            d = store.data_dir(env)
+            cov = env.get("CLAUDE_PLUGIN_OPTION_BAND") or "50"
+            stdout.write(json.dumps(predict.evaluate(store.read_history(d), cov), indent=2) + "\n")
+            return 0
+        if not enabled(env):
+            return 0
+        inp = json.loads(stdin.read() or "{}")
         if event == "prompt":
             msg = on_prompt(inp, env, now)
         elif event == "stop":

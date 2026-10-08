@@ -1,12 +1,24 @@
 {
   "name": "turn-eta",
   "displayName": "Turn ETA",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Shows how long turns like this one usually take, from your own past turns, and flags when Claude is having an incident.",
-  "author": { "name": "RainDragon AI" },
+  "author": {
+    "name": "RainDragon AI"
+  },
   "license": "Apache-2.0",
-  "keywords": ["eta", "duration", "status"],
+  "keywords": [
+    "eta",
+    "duration",
+    "status"
+  ],
   "userConfig": {
+    "enabled": {
+      "type": "boolean",
+      "title": "Enabled",
+      "description": "Turn the estimates off without uninstalling. Off means nothing is shown and nothing is recorded.",
+      "default": true
+    },
     "band": {
       "type": "string",
       "title": "Band width",

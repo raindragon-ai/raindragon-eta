@@ -161,8 +161,9 @@ def test_band_appears_after_enough_turns_and_only_systemmessage(env):
         t += 1000
     out = run("prompt", prompt(99), env, t)
     assert set(out) == {"systemMessage"}
-    assert out["systemMessage"].startswith("Turn ETA: Half of your similar turns took")
-    assert "from 10 turns" in out["systemMessage"]
+    # under CONFIDENT turns: the wide band, labelled, whatever the setting
+    assert out["systemMessage"].startswith("Turn ETA: 8 in 10 of your similar turns took")
+    assert "from 10 turns, still learning" in out["systemMessage"]
 
 
 def test_failure_is_recorded_but_excluded(env):
@@ -206,7 +207,7 @@ def test_show_result(env):
 def test_show_result_names_the_chosen_band(env, cov, share):
     env = dict(env, CLAUDE_PLUGIN_OPTION_SHOW_RESULT="true", CLAUDE_PLUGIN_OPTION_BAND=cov)
     t = 0
-    for i in range(predict.MIN_READY):
+    for i in range(predict.CONFIDENT):
         run("prompt", prompt(i), env, t)
         run("stop", {"session_id": "s1", "prompt_id": "p%d" % i}, env, t + 40 + i)
         t += 1000
@@ -239,3 +240,90 @@ def test_old_session_markers_are_cleaned(env):
     os.utime(old, (0, 0))
     run("prompt", prompt(2, sid="new"), env, 10 * 86400)
     assert not os.path.exists(old) and os.path.exists(os.path.join(d, "noted", "new"))
+
+
+# ---------- first run, evaluation, kill switch, doctor (M1) ----------
+
+def _turns(env, n, t0=0, dur=lambda i: 40 + i):
+    t = t0
+    for i in range(n):
+        run("prompt", prompt(i), env, t)
+        run("stop", {"session_id": "s1", "prompt_id": "p%d" % i}, env, t + dur(i))
+        t += 1000
+    return t
+
+
+def test_learning_band_is_wide_then_narrows_at_confident(env):
+    h = [rec(10 + i) for i in range(predict.CONFIDENT - 1)]
+    b = predict.predict(h, 50, 1000, "high", "50")
+    assert b.learning and b.coverage == "80"
+    b = predict.predict(h + [rec(30)], 50, 1000, "high", "50")
+    assert not b.learning and b.coverage == "50"
+
+
+def test_ready_band_line_has_no_learning_label(env):
+    t = _turns(env, predict.CONFIDENT)
+    out = run("prompt", prompt(99), env, t)
+    assert out["systemMessage"].startswith("Turn ETA: Half of your similar turns took")
+    assert "still learning" not in out["systemMessage"]
+
+
+def test_evaluate_scores_only_from_the_past():
+    h = [rec(10 + (i % 7)) for i in range(60)]
+    e = predict.evaluate(h, "50")
+    assert e["scored"] == 60 - predict.MIN_READY
+    assert 0 <= e["coverage"] <= 1 and e["median_ratio"] >= 1
+    assert set(e["by_band"]) == {"80", "50"}
+    assert e["by_band"]["80"]["scored"] == predict.CONFIDENT - predict.MIN_READY
+
+
+def test_evaluate_ignores_failed_and_incident_turns():
+    h = [rec(20) for _ in range(40)] + [rec(999, ok=False), rec(999, incident=True)]
+    assert predict.evaluate(h)["scored"] == 40 - predict.MIN_READY
+
+
+def test_evaluate_on_empty_history():
+    assert predict.evaluate([])["coverage"] is None
+
+
+@pytest.mark.parametrize("off", [{"CLAUDE_PLUGIN_OPTION_ENABLED": "false"}, {"TURN_ETA_OFF": "1"}])
+def test_kill_switch_shows_and_records_nothing(env, off):
+    env = dict(env, **off)
+    assert run("prompt", prompt(1), env, 0) is None
+    assert run("stop", {"session_id": "s1", "prompt_id": "p1"}, env, 10) is None
+    assert store.read_history(env["CLAUDE_PLUGIN_DATA"]) == []
+
+
+def test_doctor_reports_counts_never_content(env):
+    run("prompt", dict(prompt(1), prompt="SECRET customer text"), env, 0)
+    run("stop", {"session_id": "s1", "prompt_id": "p1"}, env, 10)
+    out = io.StringIO()
+    assert hook.main(["hook", "doctor"], io.StringIO(""), out, env, now=20) == 0
+    d = json.loads(out.getvalue())
+    assert d["version"] == hook.__version__ and d["turns_recorded"] == 1
+    assert d["phase"] == "learning (no band yet)"
+    assert d["settings"]["enabled"] is True and d["settings"]["band"] == "50"
+    assert "SECRET" not in out.getvalue() and "s1" not in out.getvalue()
+
+
+def test_eval_command_prints_json(env):
+    _turns(env, 15)
+    out = io.StringIO()
+    assert hook.main(["hook", "eval"], io.StringIO(""), out, env, now=10**6) == 0
+    assert json.loads(out.getvalue())["scored"] == 15 - predict.MIN_READY
+
+
+def test_version_matches_plugin_manifest():
+    import pathlib
+    root = pathlib.Path(hook.__file__).resolve().parent.parent
+    manifest = json.loads((root / ".claude-plugin" / "plugin.json").read_text())
+    assert manifest["version"] == hook.__version__
+
+
+def test_commands_pass_the_data_dir(env, tmp_path):
+    other = tmp_path / "elsewhere"
+    run("prompt", prompt(1), dict(env, CLAUDE_PLUGIN_DATA=str(other)), 0)
+    out = io.StringIO()
+    hook.main(["hook", "doctor", "--data", str(other)], io.StringIO(""), out, {}, now=5)
+    d = json.loads(out.getvalue())
+    assert d["data_dir"] == str(other) and d["turns_in_progress"] == 1
