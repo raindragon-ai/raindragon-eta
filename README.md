@@ -100,7 +100,7 @@ on the tagged commit builds the same bytes.
 
 | | Turn off (keeps history) | Remove completely |
 | :- | :- | :- |
-| Plugin | set **Enabled** off, or `export TURN_ETA_OFF=1` | `claude plugin uninstall turn-eta@raindragon`, then delete `~/.claude/plugins/data/turn-eta*` |
+| Plugin | set **Enabled** off, or `export TURN_ETA_OFF=1` | `claude plugin uninstall turn-eta@raindragon`, then delete `~/.claude/plugins/data/turn-eta*` and `~/.turn-eta` |
 | Extension | untick **On** in its options | **Remove** on `chrome://extensions` (Chrome deletes its stored history with it) |
 
 Off means nothing is shown and nothing is recorded.

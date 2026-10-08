@@ -22,6 +22,10 @@ For each finished turn it keeps:
 | Reply length in words (extension) | `350` |
 | Whether it failed, or ran during a Claude incident | `"ok": true, "incident": false` |
 
+The plugin also writes one file outside that folder, `~/.turn-eta/data_dir`,
+holding only the path of the folder above, so the live status line can find
+the turn in progress.
+
 It does **not** keep your prompts, Claude's replies, file names, chat or
 session names, project paths or anything you typed. Markers for a turn in
 progress are deleted after two days. History is capped at the most recent
@@ -47,5 +51,5 @@ content. You choose whether to share them.
 ## Deleting your data
 
 * Extension: **Clear my history** in its options, or remove the extension.
-* Plugin: delete `~/.claude/plugins/data/turn-eta*` (and uninstall it if you
-  like).
+* Plugin: delete `~/.claude/plugins/data/turn-eta*` and `~/.turn-eta` (and
+  uninstall it if you like).
