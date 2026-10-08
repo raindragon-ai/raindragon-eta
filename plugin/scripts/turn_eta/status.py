@@ -26,7 +26,12 @@ TIMEOUT_SECONDS = 1.5
 CLAUDE_CODE_COMPONENTS = ("claude code", "claude api")
 CLAUDE_WEB_COMPONENTS = ("claude.ai", "claude api")
 
-_OK = ("operational", "under_maintenance")
+# Only MAJOR problems count. Measured on the reference corpus: turns during
+# major incidents ran 1.81x longer (z=+4.5); during minor incidents and
+# "degraded performance" 0.91x, i.e. no slowdown. Warning on those would cry
+# wolf, and excluding their turns from the band would throw away normal data.
+MAJOR_IMPACTS = ("major", "critical")
+MAJOR_COMPONENT_STATUS = ("major_outage",)
 
 
 def _relevant(name: str, components: Sequence[str]) -> bool:
@@ -35,14 +40,16 @@ def _relevant(name: str, components: Sequence[str]) -> bool:
 
 
 def incident_from_summary(summary: dict, components: Sequence[str]) -> Optional[str]:
-    """Short text naming the active problem on our components, or None."""
+    """Short text naming an active MAJOR problem on our components, or None."""
     for inc in summary.get("incidents") or []:
         if inc.get("status") in ("resolved", "postmortem"):
+            continue
+        if str(inc.get("impact") or "").lower() not in MAJOR_IMPACTS:
             continue
         if any(_relevant(c.get("name"), components) for c in inc.get("components") or []):
             return inc.get("name") or "an active incident"
     for comp in summary.get("components") or []:
-        if _relevant(comp.get("name"), components) and comp.get("status") not in _OK:
+        if _relevant(comp.get("name"), components) and comp.get("status") in MAJOR_COMPONENT_STATUS:
             return "%s: %s" % (comp.get("name"), str(comp.get("status")).replace("_", " "))
     return None
 

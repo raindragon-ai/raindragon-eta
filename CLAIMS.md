@@ -24,10 +24,13 @@ range from your own history.
    30. *Measured:* behaviour is fixed by the rule and covered by tests; first
    run is shown in the docs.
 
-3. **It tells you when Claude is having a problem.**
-   It reads status.claude.com and warns during an incident on Claude Code,
-   the Claude API or claude.ai (not unrelated surfaces such as the Console).
-   *Measured:* the warning is a direct read of the public status page.
+3. **It tells you when Claude is having a major problem.**
+   It reads status.claude.com and warns only during a MAJOR incident (impact
+   major/critical, or a component in major outage) on Claude Code, the Claude
+   API or claude.ai, not on unrelated surfaces such as the Console.
+   *Measured:* on the reference corpus, turns ran 1.81x longer during major
+   incidents (z=+4.5) and 0.91x during minor/degraded ones, so minor ones are
+   deliberately not flagged.
 
 4. **Failures do not skew it.**
    Failed turns, stopped turns and turns during an incident are never used.

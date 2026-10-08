@@ -92,15 +92,36 @@ def test_console_incident_is_not_a_claude_code_incident():
 
 def test_api_incident_is_reported():
     s = json.loads(json.dumps(LIVE_SHAPE))
-    s["incidents"].append({"name": "Elevated errors on Claude Opus", "status": "identified",
+    s["incidents"].append({"name": "Elevated errors on Claude Opus", "status": "identified", "impact": "major",
                            "components": [{"name": "Claude API (api.anthropic.com)"}]})
     assert status.incident_from_summary(s, status.CLAUDE_CODE_COMPONENTS) == "Elevated errors on Claude Opus"
 
 
-def test_degraded_component_without_incident():
+def test_degraded_component_is_not_an_incident():
+    # measured: degraded/minor periods did not slow turns (0.91x), so no warning
     s = json.loads(json.dumps(LIVE_SHAPE))
     s["components"][3]["status"] = "degraded_performance"
-    assert status.incident_from_summary(s, status.CLAUDE_CODE_COMPONENTS) == "Claude Code: degraded performance"
+    assert status.incident_from_summary(s, status.CLAUDE_CODE_COMPONENTS) is None
+    s["components"][3]["status"] = "partial_outage"
+    assert status.incident_from_summary(s, status.CLAUDE_CODE_COMPONENTS) is None
+
+
+def test_major_outage_component_is_reported():
+    s = json.loads(json.dumps(LIVE_SHAPE))
+    s["components"][3]["status"] = "major_outage"
+    assert status.incident_from_summary(s, status.CLAUDE_CODE_COMPONENTS) == "Claude Code: major outage"
+
+
+@pytest.mark.parametrize("impact,reported", [("none", False), ("minor", False), (None, False),
+                                             ("major", True), ("critical", True)])
+def test_only_major_incidents_count(impact, reported):
+    inc = {"name": "Slow Claude Code", "status": "investigating",
+           "components": [{"name": "Claude Code"}]}
+    if impact is not None:
+        inc["impact"] = impact
+    got = status.incident_from_summary({"components": [], "incidents": [inc]},
+                                       status.CLAUDE_CODE_COMPONENTS)
+    assert (got == "Slow Claude Code") is reported
 
 
 def test_resolved_incident_ignored():

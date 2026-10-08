@@ -79,11 +79,16 @@ test("claude.ai incident reported, Console-only incident ignored", () => {
   const consoleOnly = { incidents: [{ name: "Console errors", status: "investigating",
     components: [{ name: "Claude Console (platform.claude.com)" }] }], components: [] };
   assert.equal(T.incidentFromSummary(consoleOnly), null);
-  const web = { incidents: [{ name: "Elevated errors on claude.ai", status: "identified",
+  const web = { incidents: [{ name: "Elevated errors on claude.ai", status: "identified", impact: "major",
     components: [{ name: "claude.ai" }] }], components: [] };
   assert.equal(T.incidentFromSummary(web), "Elevated errors on claude.ai");
+  const minor = { incidents: [{ name: "Slow claude.ai", status: "identified", impact: "minor",
+    components: [{ name: "claude.ai" }] }], components: [] };
+  assert.equal(T.incidentFromSummary(minor), null);
   const degraded = { incidents: [], components: [{ name: "claude.ai", status: "degraded_performance" }] };
-  assert.equal(T.incidentFromSummary(degraded), "claude.ai: degraded performance");
+  assert.equal(T.incidentFromSummary(degraded), null);
+  const down = { incidents: [], components: [{ name: "claude.ai", status: "major_outage" }] };
+  assert.equal(T.incidentFromSummary(down), "claude.ai: major outage");
   assert.equal(T.incidentFromSummary({ incidents: [{ name: "x", status: "resolved",
     components: [{ name: "claude.ai" }] }] }), null);
 });

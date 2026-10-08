@@ -177,7 +177,10 @@
   // ---- status.claude.com ----
 
   const WEB_COMPONENTS = ["claude.ai", "claude api"];
-  const OK = ["operational", "under_maintenance"];
+  // Only MAJOR problems count (same rule and evidence as the plugin's
+  // status.py): major incidents slowed turns 1.81x, minor/degraded did not.
+  const MAJOR_IMPACTS = ["major", "critical"];
+  const MAJOR_COMPONENT_STATUS = ["major_outage"];
 
   function relevant(name, components) {
     const n = String(name || "").toLowerCase();
@@ -188,12 +191,13 @@
     components = components || WEB_COMPONENTS;
     for (const inc of (summary && summary.incidents) || []) {
       if (inc.status === "resolved" || inc.status === "postmortem") continue;
+      if (MAJOR_IMPACTS.indexOf(String(inc.impact || "").toLowerCase()) < 0) continue;
       if ((inc.components || []).some((c) => relevant(c.name, components))) {
         return inc.name || "an active incident";
       }
     }
     for (const comp of (summary && summary.components) || []) {
-      if (relevant(comp.name, components) && OK.indexOf(comp.status) < 0) {
+      if (relevant(comp.name, components) && MAJOR_COMPONENT_STATUS.indexOf(comp.status) >= 0) {
         return comp.name + ": " + String(comp.status).replace(/_/g, " ");
       }
     }

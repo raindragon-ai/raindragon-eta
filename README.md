@@ -1,7 +1,7 @@
 # Turn ETA
 
 How long turns like this one usually take you, as a range from your own
-history, and a heads-up when Claude is having an incident.
+history, and a heads-up when Claude has a major incident.
 
 | Surface | Folder | Version |
 | :- | :- | :- |
@@ -37,8 +37,9 @@ number: about half of your turns land inside the middle-half range.
 | 10–29 | the wider 8-in-10 range, marked "still learning" |
 | 30+ | the range you chose (middle half by default) |
 
-Failed turns, turns you stop, and turns during a Claude incident are never
-counted.
+Failed turns, turns you stop, and turns during a major Claude incident are
+never counted. Minor and "degraded" periods are not flagged: they did not
+slow turns down when measured.
 
 ## Install
 
