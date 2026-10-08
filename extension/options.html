@@ -4,27 +4,37 @@
 <meta charset="utf-8">
 <title>Turn ETA options</title>
 <style>
-  body { font: 14px/1.5 system-ui, sans-serif; margin: 24px; max-width: 520px; color: #222; background: #fff; }
+  body { font: 14px/1.5 system-ui, sans-serif; margin: 24px; max-width: 560px; color: #222; background: #fff; }
   @media (prefers-color-scheme: dark) { body { color: #eee; background: #1f1f1e; } }
   label { display: block; margin: 12px 0; }
   .hint { color: #777; font-size: 12px; margin-left: 24px; }
-  button { margin-top: 12px; }
-  #saved { margin-left: 8px; color: #2e7d32; }
+  .box { border: 1px solid rgba(127,127,127,.3); border-radius: 8px; padding: 10px 12px; margin: 16px 0; }
+  button { margin: 12px 8px 0 0; }
+  #saved { color: #2e7d32; }
+  #version { color: #777; font-size: 12px; }
 </style>
 </head>
 <body>
-<h2>Turn ETA</h2>
+<h2>Turn ETA <span id="version"></span></h2>
+<label><input type="checkbox" id="enabled"> On</label>
+<div class="hint">Off hides the estimate and stops recording. Your history is kept.</div>
 <label>Band width
   <select id="band">
     <option value="50">Middle half of similar replies</option>
     <option value="80">Middle 8 in 10 (wider, misses less often)</option>
   </select>
 </label>
+<div class="hint">Until 30 replies the wider band is used and marked "still learning".</div>
 <label><input type="checkbox" id="showResult"> Show the actual time after each reply</label>
 <label><input type="checkbox" id="checkStatus"> Check Claude status</label>
 <div class="hint">Reads status.claude.com every 2 minutes to warn when claude.ai has an incident.</div>
-<p class="hint" id="count"></p>
-<button id="clear">Clear my history</button><span id="saved"></span>
+<div class="box">
+  <div id="count"></div>
+  <div id="eval"></div>
+</div>
+<button id="copy">Copy diagnostics</button><button id="clear">Clear my history</button><span id="saved"></span>
+<div class="hint" style="margin-left:0">Diagnostics hold the version, settings and counts only: no prompts, replies or chat names.</div>
+<script src="lib/predict.js"></script>
 <script src="options.js"></script>
 </body>
 </html>

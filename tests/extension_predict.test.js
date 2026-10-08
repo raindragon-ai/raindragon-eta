@@ -17,16 +17,25 @@ test("failed, stopped-out and incident replies never count", () => {
 });
 
 test("band is the middle half, with a words band", () => {
-  const h = Array.from({ length: 11 }, (_, i) => rec(10 + i));   // 10..20s
+  const h = Array.from({ length: 31 }, (_, i) => rec(10 + i));   // 10..40s
   const p = T.predict(h, 50, 100, "Opus 5.5 Medium", "50");
-  assert.deepEqual(p.dur, { low: 12.5, high: 17.5 });
-  assert.deepEqual(p.words, { low: 125, high: 175 });
-  assert.equal(p.n, 11);
+  assert.deepEqual(p.dur, { low: 17.5, high: 32.5 });
+  assert.deepEqual(p.words, { low: 175, high: 325 });
+  assert.equal(p.n, 31);
+  assert.equal(p.learning, false);
   assert.equal(p.group, "prompt+conversation+model");
 });
 
+test("under CONFIDENT replies the band is the wide one, labelled learning", () => {
+  const h = Array.from({ length: T.CONFIDENT - 1 }, (_, i) => rec(10 + i));
+  const p = T.predict(h, 50, 100, "Opus 5.5 Medium", "50");
+  assert.equal(p.coverage, "80");
+  assert.equal(p.learning, true);
+  assert.match(T.bandLine(p), /^8 in 10 of your similar replies took .*, still learning\)$/);
+});
+
 test("eighty band is wider", () => {
-  const h = Array.from({ length: 11 }, (_, i) => rec(10 + i));
+  const h = Array.from({ length: 31 }, (_, i) => rec(10 + i));
   const half = T.predict(h, 50, 100, "Opus 5.5 Medium", "50");
   const eighty = T.predict(h, 50, 100, "Opus 5.5 Medium", "80");
   assert.ok(eighty.dur.low < half.dur.low && eighty.dur.high > half.dur.high);
@@ -86,4 +95,18 @@ test("one word is singular", () => {
   assert.equal(T.wordsText(300, 800), "300–800 words");
   assert.equal(T.bandLine({ dur: { low: 2, high: 3 }, words: { low: 1, high: 1 }, n: 10, coverage: "50" }),
     "Half of your similar replies took 2s–3s, 1 word (from 10)");
+});
+
+test("evaluate scores each reply only from earlier ones", () => {
+  const h = Array.from({ length: 60 }, (_, i) => rec(10 + (i % 7)));
+  const e = T.evaluate(h, "50");
+  assert.equal(e.scored, 60 - T.MIN_READY);
+  assert.equal(e.byBand["80"].scored, T.CONFIDENT - T.MIN_READY);
+  assert.ok(e.coverage >= 0 && e.coverage <= 1 && e.medianRatio >= 1);
+  assert.equal(T.evaluate([], "50").coverage, null);
+});
+
+test("version matches the manifest", () => {
+  const m = require("../extension/manifest.json");
+  assert.equal(m.version, T.VERSION);
 });

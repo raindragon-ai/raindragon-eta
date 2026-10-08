@@ -29,7 +29,7 @@
   const TICK_MS = 250;
   const MAX_TURN_MS = 30 * 60 * 1000;   // longer than this is a tab left open
   const HISTORY_CAP = 1000;
-  const DEFAULTS = { band: "50", checkStatus: true, showResult: false };
+  const DEFAULTS = { enabled: true, band: "50", checkStatus: true, showResult: false };
 
   let settings = Object.assign({}, DEFAULTS);
   let history = [];
@@ -111,6 +111,7 @@
   // ---------- turn tracking ----------
 
   function onSend() {
+    if (!settings.enabled) return;     // kill switch: show nothing, record nothing
     const now = Date.now();
     if (pending && now - pending.start < 1500) return;   // Enter + click for one send
     const pc = promptChars();
@@ -217,7 +218,7 @@
   function render() {
     const input = $(SEL.input);
     const box = input && (input.closest("fieldset") || input);
-    const m = message();
+    const m = settings.enabled ? message() : { text: "", warn: "" };
     if (!box || (!m.text && !m.warn)) { pill.hidden = true; return; }
     if (!host.isConnected) document.documentElement.appendChild(host);
     pill.textContent = "";

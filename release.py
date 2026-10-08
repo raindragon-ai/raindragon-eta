@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""Build the release artefacts and their checksums (RAI-328).
+
+    python3 release.py            -> dist/turn-eta-plugin-<v>.zip
+                                     dist/turn-eta-extension-<v>.zip
+                                     dist/SHA256SUMS
+
+The zips are reproducible: files in sorted order, fixed timestamps and
+permissions, no caches. Building the same commit twice gives the same bytes,
+so anyone can rebuild and compare against the published SHA256SUMS.
+
+Refuses to build when the plugin and extension versions disagree.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import sys
+import zipfile
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+FIXED_TIME = (2026, 1, 1, 0, 0, 0)
+SKIP_DIRS = {"__pycache__", ".pytest_cache"}
+SKIP_SUFFIXES = (".pyc", ".tmp")
+
+
+def versions() -> dict:
+    with open(os.path.join(HERE, "plugin", ".claude-plugin", "plugin.json")) as f:
+        plugin = json.load(f)["version"]
+    with open(os.path.join(HERE, "extension", "manifest.json")) as f:
+        ext = json.load(f)["version"]
+    sys.path.insert(0, os.path.join(HERE, "plugin", "scripts"))
+    from turn_eta import __version__ as code
+    return {"plugin.json": plugin, "manifest.json": ext, "turn_eta.__version__": code}
+
+
+def files_under(root: str) -> list:
+    out = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS)
+        for name in sorted(filenames):
+            if not name.endswith(SKIP_SUFFIXES):
+                out.append(os.path.join(dirpath, name))
+    return sorted(out)
+
+
+def build_zip(src: str, dest: str, prefix: str) -> None:
+    with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as z:
+        for path in files_under(src):
+            rel = os.path.relpath(path, src).replace(os.sep, "/")
+            info = zipfile.ZipInfo(prefix + rel, date_time=FIXED_TIME)
+            info.external_attr = 0o644 << 16
+            info.compress_type = zipfile.ZIP_DEFLATED
+            with open(path, "rb") as f:
+                z.writestr(info, f.read())
+
+
+def sha256(path: str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def main() -> int:
+    v = versions()
+    if len(set(v.values())) != 1:
+        print("version mismatch, not building: %s" % v, file=sys.stderr)
+        return 1
+    version = next(iter(v.values()))
+    dist = os.path.join(HERE, "dist")
+    os.makedirs(dist, exist_ok=True)
+    built = []
+    for part in ("plugin", "extension"):
+        name = "turn-eta-%s-%s.zip" % (part, version)
+        build_zip(os.path.join(HERE, part), os.path.join(dist, name), "turn-eta-%s/" % part)
+        built.append(name)
+    with open(os.path.join(dist, "SHA256SUMS"), "w") as f:
+        for name in built:
+            f.write("%s  %s\n" % (sha256(os.path.join(dist, name)), name))
+    with open(os.path.join(dist, "SHA256SUMS")) as f:
+        print(f.read(), end="")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

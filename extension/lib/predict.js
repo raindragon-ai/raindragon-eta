@@ -2,8 +2,10 @@
  *
  * Same rules as the Claude Code plugin (plugin/scripts/turn_eta/predict.py):
  * a BAND (middle half by default) of similar past replies, never a single
- * number; nothing until MIN_READY good replies; failed, stopped and
- * incident-time replies are kept out.
+ * number; nothing until MIN_READY good replies, then the wide 8-in-10 band
+ * labelled "still learning" until CONFIDENT; failed, stopped and
+ * incident-time replies are kept out. evaluate() replays history to measure
+ * how often the band held (coverage) and how wide it was.
  *
  * "Similar" narrows step by step, using the narrowest group that still has
  * MIN_GROUP replies:
@@ -18,7 +20,9 @@
 (function (root) {
   "use strict";
 
+  const VERSION = "0.2.0";
   const MIN_READY = 10;
+  const CONFIDENT = 30;
   const MIN_GROUP = 8;
   const RECENT = 300;
   const BANDS = { "50": [0.25, 0.75], "80": [0.10, 0.90] };
@@ -66,12 +70,15 @@
 
   // -> null while learning, else {dur:{low,high}, words:{low,high}|null, n, group, coverage}
   function predict(history, promptChars, contextChars, model, coverage) {
+    return predictBuckets(usable(history), promptBucket(promptChars),
+                          contextBucket(contextChars), modelKey(model), coverage);
+  }
+
+  function predictBuckets(good, pb, cb, mk, coverage) {
     coverage = BANDS[coverage] ? coverage : "50";
-    const good = usable(history);
     if (good.length < MIN_READY) return null;
-    const pb = promptBucket(promptChars);
-    const cb = contextBucket(contextChars);
-    const mk = modelKey(model);
+    const learning = good.length < CONFIDENT;
+    if (learning) coverage = "80";
     const groups = [
       ["prompt+conversation+model", (r) => r.pb === pb && r.cb === cb && r.model === mk],
       ["prompt+model", (r) => r.pb === pb && r.model === mk],
@@ -88,10 +95,39 @@
           n: rows.length,
           group: name,
           coverage,
+          learning,
         };
       }
     }
     return null;
+  }
+
+  // Replay in order; each reply is scored only against the band built from the
+  // replies before it. Coverage and width are reported together.
+  function evaluate(history, coverage) {
+    const good = (history || []).filter(
+      (r) => r && r.ok && !r.incident && typeof r.dur === "number" && r.dur > 0);
+    let scored = 0, hits = 0;
+    const ratios = [];
+    const byBand = {};
+    good.forEach((r, i) => {
+      const b = predictBuckets(good.slice(Math.max(0, i - RECENT), i), r.pb, r.cb, r.model, coverage);
+      if (!b) return;
+      scored += 1;
+      const hit = b.dur.low <= r.dur && r.dur <= b.dur.high;
+      if (hit) hits += 1;
+      if (b.dur.low > 0) ratios.push(b.dur.high / b.dur.low);
+      const s = byBand[b.coverage] || (byBand[b.coverage] = { scored: 0, hits: 0 });
+      s.scored += 1;
+      if (hit) s.hits += 1;
+    });
+    ratios.sort((a, b) => a - b);
+    return {
+      scored, hits,
+      coverage: scored ? hits / scored : null,
+      byBand,
+      medianRatio: ratios.length ? quantile(ratios, 0.5) : null,
+    };
   }
 
   function learnedCount(history) {
@@ -135,7 +171,7 @@
     let s = share + " of your similar replies took " +
       span(duration(p.dur.low), duration(p.dur.high));
     if (p.words) s += ", " + wordsText(p.words.low, p.words.high);
-    return s + " (from " + p.n + ")";
+    return s + " (from " + p.n + (p.learning ? ", still learning)" : ")");
   }
 
   // ---- status.claude.com ----
@@ -165,8 +201,8 @@
   }
 
   const api = {
-    MIN_READY, MIN_GROUP, RECENT, BANDS,
-    promptBucket, contextBucket, modelKey, quantile, usable, predict, learnedCount,
+    VERSION, MIN_READY, CONFIDENT, MIN_GROUP, RECENT, BANDS,
+    promptBucket, contextBucket, modelKey, quantile, usable, predict, evaluate, learnedCount,
     duration, words, wordsText, bandLine, incidentFromSummary, WEB_COMPONENTS,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;

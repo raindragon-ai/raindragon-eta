@@ -1,0 +1,16 @@
+{
+  "name": "raindragon",
+  "owner": {
+    "name": "RainDragon AI"
+  },
+  "metadata": {
+    "description": "Claude Code plugins from RainDragon AI."
+  },
+  "plugins": [
+    {
+      "name": "turn-eta",
+      "source": "./plugin",
+      "description": "Shows how long turns like this one usually take, from your own past turns, and flags when Claude is having an incident."
+    }
+  ]
+}
