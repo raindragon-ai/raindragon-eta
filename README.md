@@ -1,83 +1,121 @@
 # Turn ETA
 
-Shows, when you send a prompt, how long turns like it have usually taken
-you, and warns when Claude is having an incident. Two surfaces:
+How long turns like this one usually take you, as a range from your own
+history, and a heads-up when Claude is having an incident.
 
-| Surface | Where | State |
+| Surface | Folder | Version |
 | :- | :- | :- |
-| Claude Code plugin | `plugin/` | working, v0.1.0 |
-| Chrome extension for claude.ai | `extension/` | working, v0.1.0 |
+| Claude Code plugin | `plugin/` | 0.2.0 |
+| Chrome extension for claude.ai | `extension/` | 0.2.0 |
 
 "Turn ETA" is a working name until the product name is decided (RAI-327).
+See [CLAIMS.md](CLAIMS.md) for what we say about it and what we do not, and
+[PRIVACY.md](PRIVACY.md) for what it stores.
 
-## What it says, and what it will not say
+## What you see
 
-It shows a **band**, not a single number: "Half of your similar turns took
-40s–3m (from 57 turns)". A point estimate of turn duration is not accurate
-enough to claim, so we don't show one. What we can stand behind:
+In Claude Code, when you send a prompt:
 
-* **It knows when it does not know.** The band is the middle half (or
-  middle 8 in 10, if you choose) of your own similar turns, so about that
-  share of turns land inside it.
-* **It knows when the provider is down.** It reads status.claude.com and
-  says so when Claude Code or the Claude API has an active incident.
-  Incidents on other surfaces (for example the Console) are ignored.
-* **Failures do not skew it.** Turns that failed, and turns that ran during
-  an incident, are saved but never used for the band.
-
-Until it has seen 10 good turns it shows nothing except, once per session,
-that it is still learning.
-
-## Install (Claude Code)
-
-Needs `python3` on your PATH (no other dependencies).
-
-```bash
-claude --plugin-dir /path/to/src/turn-eta/plugin
+```
+Turn ETA: Half of your similar turns took 40s–3m (from 57 turns)
 ```
 
-Options (in `/config` once installed): band width `50` or `80`, show the
-actual time after each turn (off by default), check Claude status (on by
-default).
+On claude.ai, just above the message box, for both time and length:
+
+```
+Turn ETA · Half of your similar replies took 20s–1m, 300–800 words (from 24)
+```
+
+and a running clock while Claude replies. It is a **range**, never a single
+number: about half of your turns land inside the middle-half range.
+
+**First run.** It has nothing to go on until it has seen your turns:
+
+| Your good turns so far | What it shows |
+| :- | :- |
+| 0–9 | "learning your pace", once per session (claude.ai: while you type) |
+| 10–29 | the wider 8-in-10 range, marked "still learning" |
+| 30+ | the range you chose (middle half by default) |
+
+Failed turns, turns you stop, and turns during a Claude incident are never
+counted.
+
+## Install
+
+### Claude Code plugin
+
+Needs `python3` on your PATH. No other dependencies.
+
+```bash
+claude plugin marketplace add <repo URL or path>
+claude plugin install turn-eta@raindragon
+```
+
+Or for one session from a checkout: `claude --plugin-dir plugin/`.
+
+Options (`/plugin configure turn-eta@raindragon`): **Enabled**, band width
+`50` or `80`, show the actual time after each turn, check Claude status.
+
+Commands:
+
+* `/turn-eta:eval`: how often the range held on your own past turns.
+* `/turn-eta:doctor`: version, settings and counts, for a bug report. It holds
+  no prompts, file names or session ids.
+
+### Chrome extension
+
+1. Download `turn-eta-extension-<version>.zip` from the release and unzip it.
+2. Open `chrome://extensions`, turn on **Developer mode**, click **Load
+   unpacked** and pick the unzipped `turn-eta-extension` folder.
+3. Open claude.ai and start typing.
+
+Options (Extensions → Turn ETA → Details → Extension options): **On**, band
+width, show the actual time and length after each reply, check Claude status,
+how often the range held, **Copy diagnostics**, **Clear my history**.
+
+### Verify a download
+
+Each release has a `SHA256SUMS` file. In the folder with the zips:
+
+```bash
+sha256sum -c SHA256SUMS        # Linux
+shasum -a 256 -c SHA256SUMS    # macOS
+```
+
+Both lines must say `OK`. The zips are reproducible: `python3 release.py`
+on the tagged commit builds the same bytes.
+
+## Turn it off, or remove it
+
+| | Turn off (keeps history) | Remove completely |
+| :- | :- | :- |
+| Plugin | set **Enabled** off, or `export TURN_ETA_OFF=1` | `claude plugin uninstall turn-eta@raindragon`, then delete `~/.claude/plugins/data/turn-eta*` |
+| Extension | untick **On** in its options | **Remove** on `chrome://extensions` (Chrome deletes its stored history with it) |
+
+Off means nothing is shown and nothing is recorded.
+
+## Report a bug
+
+Run `/turn-eta:doctor` (plugin) or **Copy diagnostics** (extension options)
+and paste the output into the report, with what you saw and what you
+expected. The output names the version, so we know which build you have.
 
 ## How it works
 
-* `UserPromptSubmit` hook: starts the clock, looks up similar past turns
-  and shows the band as a user-only message (`systemMessage`). Nothing is
-  added to Claude's context.
-* `Stop` hook: stops the clock and appends the turn to local history.
-* `StopFailure` hook: saves the turn as failed.
-* An interrupted turn (Esc) never reaches `Stop`, so it is not recorded.
+Plugin: a `UserPromptSubmit` hook starts the clock and shows the range as a
+user-only message (nothing is added to Claude's context); `Stop` saves the
+duration; `StopFailure` saves it as failed. Extension: reads claude.ai's own
+page markers (`assistant-message` with `data-is-streaming`) to see when a
+reply starts and ends; it never reads or stores the text.
 
-"Similar" narrows by prompt size, conversation size and effort level, and
-falls back to broader groups until one has at least 8 turns. Only the most
+"Similar" narrows by prompt size, conversation size and effort or model, and
+falls back to broader groups until one has at least 8 turns. Only your most
 recent 300 good turns are used.
 
-## Install (Chrome extension)
-
-1. Open `chrome://extensions`, turn on **Developer mode**.
-2. **Load unpacked** and pick the `extension/` folder.
-3. Open claude.ai and start typing: the estimate shows just above the message box.
-
-Options (right-click the icon, **Options**): band width `50` or `80`, show the
-actual time and length after each reply, check Claude status, clear history.
-
-On claude.ai the band covers both time and length: "Half of your similar
-replies took 20s–1m, 300–800 words (from 24)". "Similar" narrows by prompt
-size, conversation size and the model/effort label shown in the model picker.
-A reply you stop, or one that fails to send, is not recorded.
-
-## Privacy
-
-Everything stays on your machine: the plugin in `~/.claude/plugins/data/<plugin>/`, the extension in Chrome's local extension storage.
-History keeps only the duration, reply word count (extension), coarse size
-buckets, effort level or model label and whether the turn failed: no prompt text, file names or session ids.
-Per-session markers for the turn in progress are removed after two days. The
-only network request is the status check, which you can turn off.
-
-## Tests
+## Develop
 
 ```bash
 python3 -m pytest -q tests   # plugin
 node --test tests/           # extension
+python3 release.py           # dist/*.zip + dist/SHA256SUMS
 ```
