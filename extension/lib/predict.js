@@ -120,6 +120,12 @@
     return (Math.round(w / 100) / 10).toFixed(1).replace(/\.0$/, "") + "k";
   }
 
+  // "1 word", "300–800 words"
+  function wordsText(lo, hi) {
+    const t = span(words(lo), words(hi === undefined ? lo : hi));
+    return t + (t === "1" ? " word" : " words");
+  }
+
   function span(lo, hi) {
     return lo === hi ? lo : lo + "–" + hi;
   }
@@ -128,7 +134,7 @@
     const share = p.coverage === "80" ? "8 in 10" : "Half";
     let s = share + " of your similar replies took " +
       span(duration(p.dur.low), duration(p.dur.high));
-    if (p.words) s += ", " + span(words(p.words.low), words(p.words.high)) + " words";
+    if (p.words) s += ", " + wordsText(p.words.low, p.words.high);
     return s + " (from " + p.n + ")";
   }
 
@@ -161,7 +167,7 @@
   const api = {
     MIN_READY, MIN_GROUP, RECENT, BANDS,
     promptBucket, contextBucket, modelKey, quantile, usable, predict, learnedCount,
-    duration, words, bandLine, incidentFromSummary, WEB_COMPONENTS,
+    duration, words, wordsText, bandLine, incidentFromSummary, WEB_COMPONENTS,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.TurnEta = api;

@@ -94,10 +94,18 @@
     return all.length ? all[all.length - 1] : null;
   }
 
-  function wordCount(el) {
-    const t = (el && el.innerText) || "";
-    const m = t.match(/\S+/g);
+  function countWords(text) {
+    const m = (text || "").match(/\S+/g);
     return m ? m.length : 0;
+  }
+
+  // Each reply carries a screen-reader-only heading ("Claude responded: ..."):
+  // its words are not part of the reply.
+  function wordCount(el) {
+    if (!el) return 0;
+    let n = countWords(el.innerText);
+    for (const sr of el.querySelectorAll(".sr-only")) n -= countWords(sr.innerText);
+    return Math.max(0, n);
   }
 
   // ---------- turn tracking ----------
@@ -132,7 +140,7 @@
     }
     save(rec);
     if (ok && settings.showResult) {
-      let text = "Took " + T.duration(dur) + ", " + T.words(rec.words) + " words";
+      let text = "Took " + T.duration(dur) + ", " + T.wordsText(rec.words);
       if (p.band) text += " · " + T.bandLine(p.band);
       lastResult = { text, until: Date.now() + 15000 };
     }

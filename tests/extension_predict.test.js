@@ -78,3 +78,12 @@ test("claude.ai incident reported, Console-only incident ignored", () => {
   assert.equal(T.incidentFromSummary({ incidents: [{ name: "x", status: "resolved",
     components: [{ name: "claude.ai" }] }] }), null);
 });
+
+test("one word is singular", () => {
+  assert.equal(T.wordsText(1), "1 word");
+  assert.equal(T.wordsText(2), "2 words");
+  assert.equal(T.wordsText(1, 1), "1 word");
+  assert.equal(T.wordsText(300, 800), "300–800 words");
+  assert.equal(T.bandLine({ dur: { low: 2, high: 3 }, words: { low: 1, high: 1 }, n: 10, coverage: "50" }),
+    "Half of your similar replies took 2s–3s, 1 word (from 10)");
+});
