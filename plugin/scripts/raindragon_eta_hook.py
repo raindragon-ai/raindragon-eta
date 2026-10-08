@@ -8,6 +8,8 @@ StopFailure       the turn failed: save it as failed so it never enters a band
 Also run by hand (or via the plugin's slash commands):
   doctor            version, settings and counts -- never content -- to paste
                     into a bug report
+  refresh-status    fetch status.claude.com into the cache; started detached
+                    by the prompt hook, which never waits on the network
   eval              how often your band held on your own history (coverage)
                     and how wide it was, replayed in order
 
@@ -173,6 +175,9 @@ def main(argv, stdin, stdout, env, now=None) -> int:
             env = dict(env, CLAUDE_PLUGIN_DATA=argv[3])
         if event == "doctor":
             stdout.write(json.dumps(doctor(env, now), indent=2) + "\n")
+            return 0
+        if event == "refresh-status":
+            status.refresh(store.data_dir(env), now)
             return 0
         if event == "eval":
             d = store.data_dir(env)

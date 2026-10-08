@@ -60,31 +60,83 @@ def _fetch(url: str) -> dict:
         return json.loads(resp.read().decode("utf-8"))
 
 
-def current_incident(cache_dir: str, components: Sequence[str] = CLAUDE_CODE_COMPONENTS,
-                     now: Optional[float] = None, fetch=None) -> Optional[str]:
-    now = time.time() if now is None else now
-    fetch = fetch or _fetch
-    path = os.path.join(cache_dir, "status_cache.json")
-    summary = None
+STALE_OK_SECONDS = 600     # an older cached status is better than none, up to this
+REFRESH_EVERY_SECONDS = 30  # at most one background refresh started per this
+
+
+def _read_cache(path: str):
     try:
         with open(path) as f:
             cached = json.load(f)
-        if now - cached.get("fetched_at", 0) < CACHE_SECONDS:
-            summary = cached.get("summary")
-    except (OSError, ValueError):
-        pass
-    if summary is None:
-        try:
-            summary = fetch(SUMMARY_URL)
-        except Exception:
-            return None
-        try:
-            tmp = path + ".tmp"
-            with open(tmp, "w") as f:
-                json.dump({"fetched_at": now, "summary": summary}, f)
-            os.replace(tmp, path)
-        except OSError:
-            pass
+        return float(cached.get("fetched_at", 0)), cached.get("summary")
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None, None
+
+
+def refresh(cache_dir: str, now: Optional[float] = None, fetch=None) -> bool:
+    """Fetch the status page and cache it. Blocking: run it from the
+    background process (hook "refresh-status"), never from a prompt hook."""
+    now = time.time() if now is None else now
+    try:
+        summary = (fetch or _fetch)(SUMMARY_URL)
+    except Exception:
+        return False
+    path = os.path.join(cache_dir, "status_cache.json")
+    try:
+        tmp = path + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump({"fetched_at": now, "summary": summary}, f)
+        os.replace(tmp, path)
+    except OSError:
+        return False
+    return True
+
+
+def _spawn_refresh(cache_dir: str) -> None:
+    """Start "refresh-status" detached, and do not wait for it."""
+    import subprocess
+    import sys
+    hook = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "raindragon_eta_hook.py")
+    subprocess.Popen([sys.executable, hook, "refresh-status", "--data", cache_dir],
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL, close_fds=True, start_new_session=True)
+
+
+def current_incident(cache_dir: str, components: Sequence[str] = CLAUDE_CODE_COMPONENTS,
+                     now: Optional[float] = None, fetch=None, spawn=None) -> Optional[str]:
+    """The active major incident on our components, or None. NEVER waits on
+    the network: a prompt hook calls this, and a slow DNS lookup once took it
+    past Claude Code's 5 s hook timeout, which discarded the whole message.
+
+    Reads the cached status page. When the cache is older than CACHE_SECONDS
+    it starts a background refresh (at most one per REFRESH_EVERY_SECONDS) and
+    answers from the old copy if that is under STALE_OK_SECONDS, else None.
+    Passing `fetch` refreshes inline instead (tests only)."""
+    now = time.time() if now is None else now
+    path = os.path.join(cache_dir, "status_cache.json")
+    fetched_at, summary = _read_cache(path)
+    age = None if fetched_at is None else now - fetched_at
+    if age is None or age >= CACHE_SECONDS:
+        if fetch is not None:
+            if refresh(cache_dir, now, fetch):
+                fetched_at, summary = _read_cache(path)
+                age = 0.0
+        else:
+            stamp = os.path.join(cache_dir, "status_refresh_started")
+            try:
+                started = os.path.getmtime(stamp)
+            except OSError:
+                started = None              # never refreshed: always start one
+            if started is None or now - started >= REFRESH_EVERY_SECONDS:
+                try:
+                    open(stamp, "w").close()
+                    os.utime(stamp, (now, now))
+                    (spawn or _spawn_refresh)(cache_dir)
+                except Exception:
+                    pass
+    if summary is None or age is None or age >= STALE_OK_SECONDS:
+        return None
     try:
         return incident_from_summary(summary, components)
     except Exception:

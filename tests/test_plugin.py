@@ -242,11 +242,17 @@ def test_incident_turn_flagged_and_excluded(env, monkeypatch):
     env = dict(env, CLAUDE_PLUGIN_OPTION_CHECK_STATUS="true")
     monkeypatch.setattr(status, "_fetch", lambda url: {
         "components": [{"name": "Claude Code", "status": "major_outage"}], "incidents": []})
+    # the background refresh, run inline here: the FIRST prompt only starts it
+    monkeypatch.setattr(status, "_spawn_refresh", lambda d: status.refresh(d, now=0))
     out = run("prompt", prompt(1), env, 0)
+    assert "Claude status" not in out["systemMessage"]
+    run("stop", {"session_id": "s1", "prompt_id": "p1"}, env, 30)
+    out = run("prompt", prompt(2), env, 40)
     assert "Claude status reports \"Claude Code: major outage\"" in out["systemMessage"]
-    run("stop", {"session_id": "s1", "prompt_id": "p1"}, env, 900)
+    run("stop", {"session_id": "s1", "prompt_id": "p2"}, env, 900)
     h = store.read_history(env["CLAUDE_PLUGIN_DATA"])
-    assert h[0]["incident"] is True and predict.learned_count(h) == 0
+    assert [r["incident"] for r in h] == [False, True]
+    assert predict.learned_count(h) == 1
 
 
 def test_garbage_input_never_fails(env):
@@ -357,3 +363,42 @@ def test_prompt_leaves_pointer_and_live_fields_for_the_mod(env):
     assert open(ptr).read() == env["CLAUDE_PLUGIN_DATA"]
     p = json.load(open(os.path.join(env["CLAUDE_PLUGIN_DATA"], "pending", "s1")))
     assert p["start"] == 0 and p["learned"] == 0 and p["low"] is None
+
+
+# ---------- the prompt hook never waits on the network ----------
+
+def test_no_cache_starts_one_background_refresh_and_answers_none(tmp_path):
+    spawned = []
+    d = str(tmp_path)
+    assert status.current_incident(d, now=1000, spawn=spawned.append) is None
+    assert status.current_incident(d, now=1010, spawn=spawned.append) is None
+    assert spawned == [d]                       # throttled: one per 30 s
+    status.current_incident(d, now=1040, spawn=spawned.append)
+    assert len(spawned) == 2
+
+
+def test_stale_cache_is_used_while_it_refreshes(tmp_path):
+    d = str(tmp_path)
+    down = {"components": [{"name": "Claude Code", "status": "major_outage"}], "incidents": []}
+    assert status.refresh(d, now=1000, fetch=lambda url: down)
+    spawned = []
+    assert status.current_incident(d, now=1300, spawn=spawned.append) == "Claude Code: major outage"
+    assert spawned == [d]                       # older than 2 min: refresh started
+    assert status.current_incident(d, now=1000 + status.STALE_OK_SECONDS, spawn=spawned.append) is None
+
+
+def test_prompt_hook_is_fast_even_when_the_network_hangs(env, monkeypatch):
+    import time as _time
+    env = dict(env, CLAUDE_PLUGIN_OPTION_CHECK_STATUS="true")
+    monkeypatch.setattr(status, "_fetch", lambda url: _time.sleep(30))
+    monkeypatch.setattr(status, "_spawn_refresh", lambda d: None)
+    t = _time.time()
+    out = hook.main(["hook", "prompt"], io.StringIO(json.dumps(prompt(1))), io.StringIO(), env)
+    assert out == 0 and _time.time() - t < 1.0
+
+
+def test_refresh_status_command_writes_the_cache(env, monkeypatch):
+    monkeypatch.setattr(status, "_fetch", lambda url: {"components": [], "incidents": []})
+    hook.main(["hook", "refresh-status", "--data", env["CLAUDE_PLUGIN_DATA"]], io.StringIO(""),
+              io.StringIO(), {}, now=50)
+    assert os.path.exists(os.path.join(env["CLAUDE_PLUGIN_DATA"], "status_cache.json"))
