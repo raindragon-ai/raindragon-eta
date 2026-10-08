@@ -402,3 +402,19 @@ def test_refresh_status_command_writes_the_cache(env, monkeypatch):
     hook.main(["hook", "refresh-status", "--data", env["CLAUDE_PLUGIN_DATA"]], io.StringIO(""),
               io.StringIO(), {}, now=50)
     assert os.path.exists(os.path.join(env["CLAUDE_PLUGIN_DATA"], "status_cache.json"))
+
+
+@pytest.mark.parametrize("cmd", ["/raindragon-eta:doctor", "  /raindragon-eta:eval"])
+def test_own_commands_are_not_timed(env, cmd):
+    _turns(env, predict.MIN_READY)
+    before = len(store.read_history(env["CLAUDE_PLUGIN_DATA"]))
+    assert run("prompt", dict(prompt(50), prompt=cmd), env, 10**6) is None
+    run("stop", {"session_id": "s1", "prompt_id": "p50"}, env, 10**6 + 2)
+    assert len(store.read_history(env["CLAUDE_PLUGIN_DATA"])) == before
+    assert not os.listdir(os.path.join(env["CLAUDE_PLUGIN_DATA"], "pending"))
+
+
+def test_other_slash_commands_are_still_timed(env):
+    run("prompt", dict(prompt(1), prompt="/review this file"), env, 0)
+    run("stop", {"session_id": "s1", "prompt_id": "p1"}, env, 20)
+    assert len(store.read_history(env["CLAUDE_PLUGIN_DATA"])) == 1

@@ -65,9 +65,18 @@ def _settings(env: dict) -> dict:
             "check_status": _flag(env, "CHECK_STATUS", True)}
 
 
+OWN_COMMANDS = "/raindragon-eta:"   # our own slash commands are not turns worth timing
+
+
 def on_prompt(inp: dict, env: dict, now: float, fetch=None) -> str:
     d = store.data_dir(env)
     store.cleanup(d, now)
+    if (inp.get("prompt") or "").lstrip().startswith(OWN_COMMANDS):
+        # /raindragon-eta:doctor and :eval take a second and say nothing about
+        # the user's pace: no estimate, and no pending turn, so Stop records
+        # nothing and the status-line clock does not start.
+        store.pop_pending(d, inp.get("session_id") or "")
+        return ""
     store.write_json(d, "settings_seen.json", dict(_settings(env), at=int(now)))
     store.write_pointer(env, d)
     sid = inp.get("session_id") or ""
