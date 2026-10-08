@@ -64,7 +64,7 @@ def on_prompt(inp: dict, env: dict, now: float, fetch=None) -> str:
     store.write_pending(d, sid, {
         "prompt_id": inp.get("prompt_id"), "start": now,
         "pb": predict.prompt_bucket(pc), "cb": predict.context_bucket(tb),
-        "effort": effort, "incident": bool(incident),
+        "effort": effort, "incident": bool(incident), "cov": coverage,
         "low": band.low if band else None, "high": band.high if band else None,
     })
 
@@ -97,7 +97,8 @@ def on_stop(inp: dict, env: dict, now: float, ok: bool) -> str:
     if ok and _flag(env, "SHOW_RESULT", False):
         took = "took " + fmt.duration(dur)
         if p.get("low") is not None:
-            took += " (half of similar turns took %s–%s)" % (fmt.duration(p["low"]), fmt.duration(p["high"]))
+            share = "half" if p.get("cov", "50") == "50" else "8 in 10"
+            took += " (%s of similar turns took %s–%s)" % (share, fmt.duration(p["low"]), fmt.duration(p["high"]))
         return PREFIX + took
     return ""
 

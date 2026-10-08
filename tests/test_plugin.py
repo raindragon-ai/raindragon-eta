@@ -202,6 +202,19 @@ def test_show_result(env):
     assert out == {"systemMessage": "Turn ETA: took 1m"}
 
 
+@pytest.mark.parametrize("cov,share", [("50", "half"), ("80", "8 in 10")])
+def test_show_result_names_the_chosen_band(env, cov, share):
+    env = dict(env, CLAUDE_PLUGIN_OPTION_SHOW_RESULT="true", CLAUDE_PLUGIN_OPTION_BAND=cov)
+    t = 0
+    for i in range(predict.MIN_READY):
+        run("prompt", prompt(i), env, t)
+        run("stop", {"session_id": "s1", "prompt_id": "p%d" % i}, env, t + 40 + i)
+        t += 1000
+    run("prompt", prompt(99), env, t)
+    out = run("stop", {"session_id": "s1", "prompt_id": "p99"}, env, t + 45)
+    assert out["systemMessage"].startswith("Turn ETA: took 45s (%s of similar turns took " % share)
+
+
 def test_incident_turn_flagged_and_excluded(env, monkeypatch):
     env = dict(env, CLAUDE_PLUGIN_OPTION_CHECK_STATUS="true")
     monkeypatch.setattr(status, "_fetch", lambda url: {

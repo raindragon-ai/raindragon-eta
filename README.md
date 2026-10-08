@@ -6,7 +6,7 @@ you, and warns when Claude is having an incident. Two surfaces:
 | Surface | Where | State |
 | :- | :- | :- |
 | Claude Code plugin | `plugin/` | working, v0.1.0 |
-| Chrome extension for claude.ai | `extension/` | not started |
+| Chrome extension for claude.ai | `extension/` | working, v0.1.0 |
 
 "Turn ETA" is a working name until the product name is decided (RAI-327).
 
@@ -53,16 +53,31 @@ default).
 falls back to broader groups until one has at least 8 turns. Only the most
 recent 300 good turns are used.
 
+## Install (Chrome extension)
+
+1. Open `chrome://extensions`, turn on **Developer mode**.
+2. **Load unpacked** and pick the `extension/` folder.
+3. Open claude.ai and start typing: the estimate shows just above the message box.
+
+Options (right-click the icon, **Options**): band width `50` or `80`, show the
+actual time and length after each reply, check Claude status, clear history.
+
+On claude.ai the band covers both time and length: "Half of your similar
+replies took 20s–1m, 300–800 words (from 24)". "Similar" narrows by prompt
+size, conversation size and the model/effort label shown in the model picker.
+A reply you stop, or one that fails to send, is not recorded.
+
 ## Privacy
 
-Everything stays on your machine, in `~/.claude/plugins/data/<plugin>/`.
-History keeps only the duration, coarse size buckets, effort level and
-whether the turn failed: no prompt text, file names or session ids.
+Everything stays on your machine: the plugin in `~/.claude/plugins/data/<plugin>/`, the extension in Chrome's local extension storage.
+History keeps only the duration, reply word count (extension), coarse size
+buckets, effort level or model label and whether the turn failed: no prompt text, file names or session ids.
 Per-session markers for the turn in progress are removed after two days. The
 only network request is the status check, which you can turn off.
 
 ## Tests
 
 ```bash
-python3 -m pytest -q tests
+python3 -m pytest -q tests   # plugin
+node --test tests/           # extension
 ```

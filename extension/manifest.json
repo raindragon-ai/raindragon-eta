@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Turn ETA for Claude",
+  "version": "0.1.0",
+  "description": "Shows how long replies like this one usually take you on claude.ai, from your own past replies, and flags Claude incidents.",
+  "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "permissions": ["storage"],
+  "host_permissions": ["https://status.claude.com/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["lib/predict.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_ui": { "page": "options.html", "open_in_tab": true }
+}
