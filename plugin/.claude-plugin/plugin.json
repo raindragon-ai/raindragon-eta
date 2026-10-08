@@ -1,17 +1,20 @@
 {
-  "name": "turn-eta",
-  "displayName": "Turn ETA",
+  "name": "raindragon-eta",
+  "displayName": "RainDragon ETA",
   "version": "0.2.0",
-  "description": "Shows how long turns like this one usually take, from your own past turns, and flags when Claude is having an incident.",
+  "description": "How long turns like this one usually take you, as a range from your own past turns, with a live clock in the status line. Flags major Claude incidents.",
   "author": {
     "name": "RainDragon AI"
   },
+  "homepage": "https://github.com/raindragon-ai/raindragon-eta",
+  "repository": "https://github.com/raindragon-ai/raindragon-eta",
   "license": "Apache-2.0",
   "keywords": [
     "eta",
     "duration",
     "status"
   ],
+  "icon": "./assets/logo.png",
   "userConfig": {
     "enabled": {
       "type": "boolean",

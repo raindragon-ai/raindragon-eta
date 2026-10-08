@@ -8,7 +8,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/scripts/turn_eta_hook.py prompt",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/scripts/raindragon_eta_hook.py prompt",
             "timeout": 5
           }
         ]
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/scripts/turn_eta_hook.py stop",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/scripts/raindragon_eta_hook.py stop",
             "timeout": 5
           }
         ]
@@ -30,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/scripts/turn_eta_hook.py stop-failure",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/scripts/raindragon_eta_hook.py stop-failure",
             "timeout": 5
           }
         ]

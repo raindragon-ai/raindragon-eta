@@ -19,7 +19,7 @@ KEEP_LINES = 1000
 
 
 def data_dir(env: dict) -> str:
-    d = env.get("CLAUDE_PLUGIN_DATA") or os.path.join(os.path.expanduser("~"), ".turn-eta")
+    d = env.get("CLAUDE_PLUGIN_DATA") or os.path.join(os.path.expanduser("~"), ".raindragon-eta")
     os.makedirs(os.path.join(d, "pending"), exist_ok=True)
     os.makedirs(os.path.join(d, "noted"), exist_ok=True)
     return d
@@ -130,11 +130,11 @@ def read_json(d: str, name: str) -> Optional[dict]:
         return None
 
 
-POINTER = os.path.join(".turn-eta", "data_dir")
+POINTER = os.path.join(".raindragon-eta", "data_dir")
 
 
 def write_pointer(env: dict, d: str) -> None:
-    """Leave the data dir's path at ~/.turn-eta/data_dir for the live
+    """Leave the data dir's path at ~/.raindragon-eta/data_dir for the live
     status-line mod (plugin/live/live.ts): a mod is told its plugin's root but
     not its data dir, which Claude Code names after the install id. Written
     only when it changed."""

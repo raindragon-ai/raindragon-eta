@@ -1,13 +1,13 @@
 # Privacy
 
-Turn ETA watches how long your Claude turns take. That means it runs inside
+RainDragon ETA watches how long your Claude turns take. That means it runs inside
 your sessions, so here is exactly what it does with them.
 
 ## What it stores
 
 Only on your machine:
 
-* **Plugin:** `~/.claude/plugins/data/turn-eta*/` (a text file per turn and a
+* **Plugin:** `~/.claude/plugins/data/raindragon-eta*/` (a text file per turn and a
   few small markers).
 * **Extension:** Chrome's local storage for the extension.
 
@@ -22,7 +22,7 @@ For each finished turn it keeps:
 | Reply length in words (extension) | `350` |
 | Whether it failed, or ran during a Claude incident | `"ok": true, "incident": false` |
 
-The plugin also writes one file outside that folder, `~/.turn-eta/data_dir`,
+The plugin also writes one file outside that folder, `~/.raindragon-eta/data_dir`,
 holding only the path of the folder above, so the live status line can find
 the turn in progress.
 
@@ -44,12 +44,12 @@ default, opt-in, and show you exactly what would be sent before anything is.
 
 ## Diagnostics
 
-`/turn-eta:doctor` and **Copy diagnostics** print the version, your settings
+`/raindragon-eta:doctor` and **Copy diagnostics** print the version, your settings
 and turn counts so you can paste them into a bug report. They contain no
 content. You choose whether to share them.
 
 ## Deleting your data
 
 * Extension: **Clear my history** in its options, or remove the extension.
-* Plugin: delete `~/.claude/plugins/data/turn-eta*` and `~/.turn-eta` (and
+* Plugin: delete `~/.claude/plugins/data/raindragon-eta*` and `~/.raindragon-eta` (and
   uninstall it if you like).

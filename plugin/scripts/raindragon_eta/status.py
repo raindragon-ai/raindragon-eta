@@ -55,7 +55,7 @@ def incident_from_summary(summary: dict, components: Sequence[str]) -> Optional[
 
 
 def _fetch(url: str) -> dict:
-    req = urllib.request.Request(url, headers={"User-Agent": "turn-eta"})
+    req = urllib.request.Request(url, headers={"User-Agent": "raindragon-eta"})
     with urllib.request.urlopen(req, timeout=TIMEOUT_SECONDS) as resp:
         return json.loads(resp.read().decode("utf-8"))
 

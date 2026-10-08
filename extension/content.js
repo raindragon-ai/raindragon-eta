@@ -1,4 +1,4 @@
-/* Turn ETA on claude.ai.
+/* RainDragon ETA on claude.ai.
  *
  * While you type: a band from your own similar past replies, for example
  * "Half of your similar replies took 20s–1m, 300–800 words (from 24)".
@@ -17,7 +17,7 @@
  */
 (function () {
   "use strict";
-  const T = self.TurnEta;
+  const T = self.RainDragonEta;
   const SEL = {
     input: '[data-testid="chat-input"]',
     send: '[data-testid="chat-input-send"]',
@@ -178,7 +178,7 @@
   // ---------- the pill ----------
 
   const host = document.createElement("div");
-  host.id = "turn-eta-host";
+  host.id = "raindragon-eta-host";
   const shadow = host.attachShadow({ mode: "closed" });
   shadow.innerHTML =
     '<style>' +
@@ -222,11 +222,11 @@
     if (!box || (!m.text && !m.warn)) { pill.hidden = true; return; }
     if (!host.isConnected) document.documentElement.appendChild(host);
     pill.textContent = "";
-    if (m.text) pill.appendChild(document.createTextNode("Turn ETA · " + m.text));
+    if (m.text) pill.appendChild(document.createTextNode("RainDragon ETA · " + m.text));
     if (m.warn) {
       const w = document.createElement("span");
       w.className = "warn";
-      w.textContent = (m.text ? " · " : "Turn ETA · ") + m.warn;
+      w.textContent = (m.text ? " · " : "RainDragon ETA · ") + m.warn;
       pill.appendChild(w);
     }
     const r = box.getBoundingClientRect();

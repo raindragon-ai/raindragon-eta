@@ -1,6 +1,6 @@
-/* Turn ETA for claude.ai: duration and length bands from the user's own past replies.
+/* RainDragon ETA for claude.ai: duration and length bands from the user's own past replies.
  *
- * Same rules as the Claude Code plugin (plugin/scripts/turn_eta/predict.py):
+ * Same rules as the Claude Code plugin (plugin/scripts/raindragon_eta/predict.py):
  * a BAND (middle half by default) of similar past replies, never a single
  * number; nothing until MIN_READY good replies, then the wide 8-in-10 band
  * labelled "still learning" until CONFIDENT; failed, stopped and
@@ -210,5 +210,5 @@
     duration, words, wordsText, bandLine, incidentFromSummary, WEB_COMPONENTS,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
-  else root.TurnEta = api;
+  else root.RainDragonEta = api;
 })(typeof self !== "undefined" ? self : this);

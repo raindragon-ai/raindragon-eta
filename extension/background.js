@@ -18,7 +18,7 @@ async function currentIncident() {
     const t = setTimeout(() => ctl.abort(), TIMEOUT_MS);
     const resp = await fetch(SUMMARY_URL, { signal: ctl.signal, credentials: "omit" });
     clearTimeout(t);
-    if (resp.ok) incident = self.TurnEta.incidentFromSummary(await resp.json());
+    if (resp.ok) incident = self.RainDragonEta.incidentFromSummary(await resp.json());
   } catch (e) {
     incident = null;
   }

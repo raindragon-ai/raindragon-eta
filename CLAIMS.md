@@ -1,10 +1,10 @@
-# What we say about Turn ETA (draft for RAI-327)
+# What we say about RainDragon ETA
 
 Everything written about the product (landing page, README, store listing,
 release notes, announcement) comes from this list. Each claim says how it is
 measured. If it cannot be measured, it does not go in.
 
-**Name:** TBD (working name "Turn ETA"; proposed "RainDragon ETA").
+**Name:** RainDragon ETA (plugin id `raindragon-eta`).
 
 **One line:** How long turns like this one usually take you, as an honest
 range from your own history.
@@ -14,7 +14,7 @@ range from your own history.
 1. **It shows a range, and the range is honest about its own size.**
    The middle-half range comes from your own similar past turns, so about
    half of your turns should land inside it.
-   *Measured:* `/turn-eta:eval` (plugin) or the extension's options page
+   *Measured:* `/raindragon-eta:eval` (plugin) or the extension's options page
    replays your history in order and reports how often the range held, next
    to how wide it was. Launch target: coverage within a few points of 50%
    (80% for the wide range), reported per user in the beta (RAI-332).
@@ -34,7 +34,7 @@ range from your own history.
 
 4. **Failures do not skew it.**
    Failed turns, stopped turns and turns during an incident are never used.
-   *Measured:* covered by tests; visible in `/turn-eta:doctor` counts.
+   *Measured:* covered by tests; visible in `/raindragon-eta:doctor` counts.
 
 5. **Your work stays on your machine.** See PRIVACY.md.
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Build the release artefacts and their checksums (RAI-328).
 
-    python3 release.py            -> dist/turn-eta-plugin-<v>.zip
-                                     dist/turn-eta-extension-<v>.zip
+    python3 release.py            -> dist/raindragon-eta-plugin-<v>.zip
+                                     dist/raindragon-eta-extension-<v>.zip
                                      dist/SHA256SUMS
 
 The zips are reproducible: files in sorted order, fixed timestamps and
@@ -31,8 +31,8 @@ def versions() -> dict:
     with open(os.path.join(HERE, "extension", "manifest.json")) as f:
         ext = json.load(f)["version"]
     sys.path.insert(0, os.path.join(HERE, "plugin", "scripts"))
-    from turn_eta import __version__ as code
-    return {"plugin.json": plugin, "manifest.json": ext, "turn_eta.__version__": code}
+    from raindragon_eta import __version__ as code
+    return {"plugin.json": plugin, "manifest.json": ext, "raindragon_eta.__version__": code}
 
 
 def files_under(root: str) -> list:
@@ -74,8 +74,8 @@ def main() -> int:
     os.makedirs(dist, exist_ok=True)
     built = []
     for part in ("plugin", "extension"):
-        name = "turn-eta-%s-%s.zip" % (part, version)
-        build_zip(os.path.join(HERE, part), os.path.join(dist, name), "turn-eta-%s/" % part)
+        name = "raindragon-eta-%s-%s.zip" % (part, version)
+        build_zip(os.path.join(HERE, part), os.path.join(dist, name), "raindragon-eta-%s/" % part)
         built.append(name)
     with open(os.path.join(dist, "SHA256SUMS"), "w") as f:
         for name in built:

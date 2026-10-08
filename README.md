@@ -1,4 +1,4 @@
-# Turn ETA
+# RainDragon ETA
 
 How long turns like this one usually take you, as a range from your own
 history, and a heads-up when Claude has a major incident.
@@ -8,7 +8,6 @@ history, and a heads-up when Claude has a major incident.
 | Claude Code plugin | `plugin/` | 0.2.0 |
 | Chrome extension for claude.ai | `extension/` | 0.2.0 |
 
-"Turn ETA" is a working name until the product name is decided (RAI-327).
 See [CLAIMS.md](CLAIMS.md) for what we say about it and what we do not, and
 [PRIVACY.md](PRIVACY.md) for what it stores.
 
@@ -17,7 +16,7 @@ See [CLAIMS.md](CLAIMS.md) for what we say about it and what we do not, and
 In Claude Code, when you send a prompt:
 
 ```
-Turn ETA: Half of your similar turns took 40s–3m (from 57 turns)
+RainDragon ETA: Half of your similar turns took 40s–3m (from 57 turns)
 ```
 
 On Claude Code versions that support plugin mods, the status line also shows
@@ -33,7 +32,7 @@ the message above only.
 On claude.ai, just above the message box, for both time and length:
 
 ```
-Turn ETA · Half of your similar replies took 20s–1m, 300–800 words (from 24)
+RainDragon ETA · Half of your similar replies took 20s–1m, 300–800 words (from 24)
 ```
 
 and a running clock while Claude replies. It is a **range**, never a single
@@ -59,28 +58,28 @@ Needs `python3` on your PATH. No other dependencies.
 
 ```bash
 claude plugin marketplace add <repo URL or path>
-claude plugin install turn-eta@raindragon
+claude plugin install raindragon-eta@raindragon
 ```
 
 Or for one session from a checkout: `claude --plugin-dir plugin/`.
 
-Options (`/plugin configure turn-eta@raindragon`): **Enabled**, band width
+Options (`/plugin configure raindragon-eta@raindragon`): **Enabled**, band width
 `50` or `80`, show the actual time after each turn, check Claude status.
 
 Commands:
 
-* `/turn-eta:eval`: how often the range held on your own past turns.
-* `/turn-eta:doctor`: version, settings and counts, for a bug report. It holds
+* `/raindragon-eta:eval`: how often the range held on your own past turns.
+* `/raindragon-eta:doctor`: version, settings and counts, for a bug report. It holds
   no prompts, file names or session ids.
 
 ### Chrome extension
 
-1. Download `turn-eta-extension-<version>.zip` from the release and unzip it.
+1. Download `raindragon-eta-extension-<version>.zip` from the release and unzip it.
 2. Open `chrome://extensions`, turn on **Developer mode**, click **Load
-   unpacked** and pick the unzipped `turn-eta-extension` folder.
+   unpacked** and pick the unzipped `raindragon-eta-extension` folder.
 3. Open claude.ai and start typing.
 
-Options (Extensions → Turn ETA → Details → Extension options): **On**, band
+Options (Extensions → RainDragon ETA → Details → Extension options): **On**, band
 width, show the actual time and length after each reply, check Claude status,
 how often the range held, **Copy diagnostics**, **Clear my history**.
 
@@ -100,14 +99,14 @@ on the tagged commit builds the same bytes.
 
 | | Turn off (keeps history) | Remove completely |
 | :- | :- | :- |
-| Plugin | set **Enabled** off, or `export TURN_ETA_OFF=1` | `claude plugin uninstall turn-eta@raindragon`, then delete `~/.claude/plugins/data/turn-eta*` and `~/.turn-eta` |
+| Plugin | set **Enabled** off, or `export RAINDRAGON_ETA_OFF=1` | `claude plugin uninstall raindragon-eta@raindragon`, then delete `~/.claude/plugins/data/raindragon-eta*` and `~/.raindragon-eta` |
 | Extension | untick **On** in its options | **Remove** on `chrome://extensions` (Chrome deletes its stored history with it) |
 
 Off means nothing is shown and nothing is recorded.
 
 ## Report a bug
 
-Run `/turn-eta:doctor` (plugin) or **Copy diagnostics** (extension options)
+Run `/raindragon-eta:doctor` (plugin) or **Copy diagnostics** (extension options)
 and paste the output into the report, with what you saw and what you
 expected. The output names the version, so we know which build you have.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Claude Code hook entry point: turn-eta <event>.
+"""Claude Code hook entry point: raindragon-eta <event>.
 
 UserPromptSubmit  start the clock, show the band for this turn
 Stop              stop the clock, save the turn to local history
@@ -11,7 +11,7 @@ Also run by hand (or via the plugin's slash commands):
   eval              how often your band held on your own history (coverage)
                     and how wide it was, replayed in order
 
-Kill switch: the plugin option "enabled" (in /config) or TURN_ETA_OFF=1.
+Kill switch: the plugin option "enabled" (in /config) or RAINDRAGON_ETA_OFF=1.
 Off means nothing is shown and nothing is recorded.
 
 Contract with Claude Code:
@@ -31,9 +31,9 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from turn_eta import __version__, fmt, predict, status, store  # noqa: E402
+from raindragon_eta import __version__, fmt, predict, status, store  # noqa: E402
 
-PREFIX = "Turn ETA: "
+PREFIX = "RainDragon ETA: "
 MAX_TURN_SECONDS = 6 * 3600   # longer than this is a turn left open, not a duration
 
 
@@ -45,7 +45,7 @@ def _flag(env: dict, key: str, default: bool) -> bool:
 
 
 def enabled(env: dict) -> bool:
-    if str(env.get("TURN_ETA_OFF") or "").strip().lower() in ("1", "true", "yes", "on"):
+    if str(env.get("RAINDRAGON_ETA_OFF") or "").strip().lower() in ("1", "true", "yes", "on"):
         return False
     return _flag(env, "ENABLED", True)
 
@@ -148,7 +148,7 @@ def doctor(env: dict, now: float) -> dict:
     # last prompt hook saw (None before the first prompt).
     seen = store.read_json(d, "settings_seen.json")
     return {
-        "name": "turn-eta", "version": __version__,
+        "name": "raindragon-eta", "version": __version__,
         "settings": seen,
         "data_dir": d,
         "turns_recorded": len(h),

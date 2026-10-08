@@ -1,12 +1,12 @@
-// Live status line for Turn ETA: a running clock next to the band, e.g.
+// Live status line for RainDragon ETA: a running clock next to the band, e.g.
 //   ⏱ 0:42 · half took 40s–3m
 // in Claude Code's status line while a turn runs; cleared when it ends.
 //
-// Nothing is estimated here. The UserPromptSubmit hook (scripts/turn_eta_hook.py)
+// Nothing is estimated here. The UserPromptSubmit hook (scripts/raindragon_eta_hook.py)
 // has already worked out the band before `turn.start` fires and saved it in
 // <data dir>/pending/<session>; this module only reads that file and ticks.
 // A mod is told its plugin's root but not its data dir, so the hook leaves the
-// data dir's path at ~/.turn-eta/data_dir.
+// data dir's path at ~/.raindragon-eta/data_dir.
 //
 // Clients without mods ignore this file and still get the hook's one-line
 // message when the prompt is sent.
@@ -22,7 +22,7 @@ export type Pending = {
   incident?: boolean
 }
 
-const MIN_READY = 10       // keep in step with turn_eta/predict.py
+const MIN_READY = 10       // keep in step with raindragon_eta/predict.py
 
 export function clock(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000))
@@ -32,7 +32,7 @@ export function clock(ms: number): string {
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`
 }
 
-// Same rounding as turn_eta/fmt.py duration().
+// Same rounding as raindragon_eta/fmt.py duration().
 export function duration(seconds: number): string {
   const s = Math.max(0, Math.round(seconds))
   if (s < 60) return `${s}s`
@@ -78,7 +78,7 @@ export const register: Register = on => {
       const mine = ++turn
       const home = await $.env.get('HOME')
       if (!home) return result
-      const dir = (await $.fs.read(`${home}/.turn-eta/data_dir`)).trim()
+      const dir = (await $.fs.read(`${home}/.raindragon-eta/data_dir`)).trim()
       const sid = safeSession(await $.session.id())
       const p = JSON.parse(await $.fs.read(`${dir}/pending/${sid}`)) as Pending
       if (typeof p.start !== 'number') return result

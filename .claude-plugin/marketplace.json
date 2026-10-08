@@ -8,9 +8,9 @@
   },
   "plugins": [
     {
-      "name": "turn-eta",
+      "name": "raindragon-eta",
       "source": "./plugin",
-      "description": "Shows how long turns like this one usually take, from your own past turns, and flags when Claude is having an incident."
+      "description": "How long turns like this one usually take you, as a range from your own past turns, with a live clock in the status line."
     }
   ]
 }

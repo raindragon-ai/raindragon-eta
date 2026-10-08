@@ -7,8 +7,8 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "plugin", "scripts"))
 
-import turn_eta_hook as hook  # noqa: E402
-from turn_eta import fmt, predict, status, store  # noqa: E402
+import raindragon_eta_hook as hook  # noqa: E402
+from raindragon_eta import fmt, predict, status, store  # noqa: E402
 
 
 def rec(dur, ok=True, incident=False, pb="short", cb="small", effort="high"):
@@ -169,7 +169,7 @@ def prompt(i, sid="s1"):
 
 def test_first_run_says_learning_once_then_nothing(env):
     out = run("prompt", prompt(1), env, 1000)
-    assert out["systemMessage"].startswith("Turn ETA: learning your pace")
+    assert out["systemMessage"].startswith("RainDragon ETA: learning your pace")
     assert "(0 so far)" in out["systemMessage"]
     run("stop", {"session_id": "s1", "prompt_id": "p1"}, env, 1030)
     assert run("prompt", prompt(2), env, 2000) is None  # no repeat in the same session
@@ -184,7 +184,7 @@ def test_band_appears_after_enough_turns_and_only_systemmessage(env):
     out = run("prompt", prompt(99), env, t)
     assert set(out) == {"systemMessage"}
     # under CONFIDENT turns: the wide band, labelled, whatever the setting
-    assert out["systemMessage"].startswith("Turn ETA: 8 in 10 of your similar turns took")
+    assert out["systemMessage"].startswith("RainDragon ETA: 8 in 10 of your similar turns took")
     assert "from 10 turns, still learning" in out["systemMessage"]
 
 
@@ -222,7 +222,7 @@ def test_show_result(env):
     env = dict(env, CLAUDE_PLUGIN_OPTION_SHOW_RESULT="true")
     run("prompt", prompt(1), env, 0)
     out = run("stop", {"session_id": "s1", "prompt_id": "p1"}, env, 75)
-    assert out == {"systemMessage": "Turn ETA: took 1m"}
+    assert out == {"systemMessage": "RainDragon ETA: took 1m"}
 
 
 @pytest.mark.parametrize("cov,share", [("50", "half"), ("80", "8 in 10")])
@@ -235,7 +235,7 @@ def test_show_result_names_the_chosen_band(env, cov, share):
         t += 1000
     run("prompt", prompt(99), env, t)
     out = run("stop", {"session_id": "s1", "prompt_id": "p99"}, env, t + 45)
-    assert out["systemMessage"].startswith("Turn ETA: took 45s (%s of similar turns took " % share)
+    assert out["systemMessage"].startswith("RainDragon ETA: took 45s (%s of similar turns took " % share)
 
 
 def test_incident_turn_flagged_and_excluded(env, monkeypatch):
@@ -286,7 +286,7 @@ def test_learning_band_is_wide_then_narrows_at_confident(env):
 def test_ready_band_line_has_no_learning_label(env):
     t = _turns(env, predict.CONFIDENT)
     out = run("prompt", prompt(99), env, t)
-    assert out["systemMessage"].startswith("Turn ETA: Half of your similar turns took")
+    assert out["systemMessage"].startswith("RainDragon ETA: Half of your similar turns took")
     assert "still learning" not in out["systemMessage"]
 
 
@@ -308,7 +308,7 @@ def test_evaluate_on_empty_history():
     assert predict.evaluate([])["coverage"] is None
 
 
-@pytest.mark.parametrize("off", [{"CLAUDE_PLUGIN_OPTION_ENABLED": "false"}, {"TURN_ETA_OFF": "1"}])
+@pytest.mark.parametrize("off", [{"CLAUDE_PLUGIN_OPTION_ENABLED": "false"}, {"RAINDRAGON_ETA_OFF": "1"}])
 def test_kill_switch_shows_and_records_nothing(env, off):
     env = dict(env, **off)
     assert run("prompt", prompt(1), env, 0) is None
@@ -353,7 +353,7 @@ def test_commands_pass_the_data_dir(env, tmp_path):
 
 def test_prompt_leaves_pointer_and_live_fields_for_the_mod(env):
     run("prompt", prompt(1), env, 0)
-    ptr = os.path.join(env["HOME"], ".turn-eta", "data_dir")
+    ptr = os.path.join(env["HOME"], ".raindragon-eta", "data_dir")
     assert open(ptr).read() == env["CLAUDE_PLUGIN_DATA"]
     p = json.load(open(os.path.join(env["CLAUDE_PLUGIN_DATA"], "pending", "s1")))
     assert p["start"] == 0 and p["learned"] == 0 and p["low"] is None

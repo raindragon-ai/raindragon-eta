@@ -1,4 +1,4 @@
-const T = self.TurnEta;
+const T = self.RainDragonEta;
 const DEFAULTS = { enabled: true, band: "50", checkStatus: true, showResult: false };
 const $ = (id) => document.getElementById(id);
 let state = { settings: DEFAULTS, history: [] };
@@ -37,7 +37,7 @@ function render() {
 function diagnostics() {
   const h = state.history, good = T.learnedCount(h), e = T.evaluate(h, state.settings.band);
   return JSON.stringify({
-    name: "turn-eta-extension", version: T.VERSION, settings: state.settings,
+    name: "raindragon-eta-extension", version: T.VERSION, settings: state.settings,
     replies_recorded: h.length, replies_used: good,
     replies_failed: h.filter((r) => !r.ok).length,
     replies_in_incident: h.filter((r) => r.ok && r.incident).length,
