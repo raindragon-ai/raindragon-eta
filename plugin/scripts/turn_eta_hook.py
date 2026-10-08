@@ -67,6 +67,7 @@ def on_prompt(inp: dict, env: dict, now: float, fetch=None) -> str:
     d = store.data_dir(env)
     store.cleanup(d, now)
     store.write_json(d, "settings_seen.json", dict(_settings(env), at=int(now)))
+    store.write_pointer(env, d)
     sid = inp.get("session_id") or ""
     effort = (inp.get("effort") or {}).get("level")
     pc = len(inp.get("prompt") or "")
@@ -88,6 +89,8 @@ def on_prompt(inp: dict, env: dict, now: float, fetch=None) -> str:
         "pb": predict.prompt_bucket(pc), "cb": predict.context_bucket(tb),
         "effort": effort, "incident": bool(incident), "cov": band.coverage if band else coverage,
         "low": band.low if band else None, "high": band.high if band else None,
+        "n": band.n if band else None, "learning": bool(band.learning) if band else None,
+        "learned": predict.learned_count(history),
     })
 
     lines = []

@@ -20,6 +20,16 @@ In Claude Code, when you send a prompt:
 Turn ETA: Half of your similar turns took 40s–3m (from 57 turns)
 ```
 
+On Claude Code versions that support plugin mods, the status line also shows
+a live clock next to the range while the turn runs, cleared when it ends:
+
+```
+⏱ 0:42 · half took 40s–3m
+```
+
+with "longer than usual" once a turn runs past the range. Older versions get
+the message above only.
+
 On claude.ai, just above the message box, for both time and length:
 
 ```

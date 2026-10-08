@@ -128,3 +128,29 @@ def read_json(d: str, name: str) -> Optional[dict]:
         return v if isinstance(v, dict) else None
     except (OSError, ValueError):
         return None
+
+
+POINTER = os.path.join(".turn-eta", "data_dir")
+
+
+def write_pointer(env: dict, d: str) -> None:
+    """Leave the data dir's path at ~/.turn-eta/data_dir for the live
+    status-line mod (plugin/live/live.ts): a mod is told its plugin's root but
+    not its data dir, which Claude Code names after the install id. Written
+    only when it changed."""
+    home = env.get("HOME") or os.path.expanduser("~")
+    path = os.path.join(home, POINTER)
+    try:
+        with open(path) as f:
+            if f.read().strip() == d:
+                return
+    except OSError:
+        pass
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w") as f:
+            f.write(d)
+        os.replace(tmp, path)
+    except OSError:
+        pass

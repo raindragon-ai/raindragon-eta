@@ -158,7 +158,8 @@ def run(event, payload, env, now):
 
 @pytest.fixture
 def env(tmp_path):
-    return {"CLAUDE_PLUGIN_DATA": str(tmp_path), "CLAUDE_PLUGIN_OPTION_CHECK_STATUS": "false"}
+    return {"CLAUDE_PLUGIN_DATA": str(tmp_path), "CLAUDE_PLUGIN_OPTION_CHECK_STATUS": "false",
+            "HOME": str(tmp_path / "home")}
 
 
 def prompt(i, sid="s1"):
@@ -348,3 +349,11 @@ def test_commands_pass_the_data_dir(env, tmp_path):
     hook.main(["hook", "doctor", "--data", str(other)], io.StringIO(""), out, {}, now=5)
     d = json.loads(out.getvalue())
     assert d["data_dir"] == str(other) and d["turns_in_progress"] == 1
+
+
+def test_prompt_leaves_pointer_and_live_fields_for_the_mod(env):
+    run("prompt", prompt(1), env, 0)
+    ptr = os.path.join(env["HOME"], ".turn-eta", "data_dir")
+    assert open(ptr).read() == env["CLAUDE_PLUGIN_DATA"]
+    p = json.load(open(os.path.join(env["CLAUDE_PLUGIN_DATA"], "pending", "s1")))
+    assert p["start"] == 0 and p["learned"] == 0 and p["low"] is None

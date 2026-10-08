@@ -1,23 +1,38 @@
 {
+  "modules": [
+    "./live.ts"
+  ],
   "hooks": {
     "UserPromptSubmit": [
       {
         "hooks": [
-          { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/scripts/turn_eta_hook.py prompt", "timeout": 5 }
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/scripts/turn_eta_hook.py prompt",
+            "timeout": 5
+          }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/scripts/turn_eta_hook.py stop", "timeout": 5 }
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/scripts/turn_eta_hook.py stop",
+            "timeout": 5
+          }
         ]
       }
     ],
     "StopFailure": [
       {
         "hooks": [
-          { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/scripts/turn_eta_hook.py stop-failure", "timeout": 5 }
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/scripts/turn_eta_hook.py stop-failure",
+            "timeout": 5
+          }
         ]
       }
     ]
