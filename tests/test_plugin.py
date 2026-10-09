@@ -332,6 +332,16 @@ def test_doctor_reports_counts_never_content(env):
     assert d["phase"] == "learning (no band yet)"
     assert d["settings"]["enabled"] is True and d["settings"]["band"] == "50"
     assert "SECRET" not in out.getvalue() and "s1" not in out.getvalue()
+    assert d["made_by"] == "RainDragon AI"
+    assert d["homepage"].startswith("https://inference.raindragon.ai/?utm_source=raindragon-eta")
+
+
+def test_estimate_never_carries_the_maker_link(env):
+    _turns(env, 40)
+    for i in range(3):
+        msg = run("prompt", prompt(100 + i), env, 10**6 + i) or {}
+        text = json.dumps(msg)
+        assert "raindragon.ai" not in text and "Made by" not in text
 
 
 def test_eval_command_prints_json(env):
