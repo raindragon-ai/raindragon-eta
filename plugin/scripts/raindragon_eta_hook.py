@@ -36,6 +36,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from raindragon_eta import __version__, fmt, predict, status, store  # noqa: E402
 
 PREFIX = "RainDragon ETA: "
+#: Who makes it. Named, with a link, in doctor output, the extension options page
+#: and the README only -- never inside an estimate (CLAIMS.md, "Made by").
+MADE_BY = "RainDragon AI"
+HOMEPAGE = "https://inference.raindragon.ai/?utm_source=raindragon-eta&utm_medium=doctor"
 MAX_TURN_SECONDS = 6 * 3600   # longer than this is a turn left open, not a duration
 
 
@@ -171,6 +175,8 @@ def doctor(env: dict, now: float) -> dict:
         "turns_in_progress": pending,
         "status_cache_age_s": cache_age,
         "python": sys.version.split()[0],
+        "made_by": MADE_BY,
+        "homepage": HOMEPAGE,
     }
 
 
