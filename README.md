@@ -6,7 +6,7 @@ RainDragon ETA watches how long your own Claude turns take, then shows a time
 range for each new one, based on turns like it. It also warns you when Claude
 is having a major incident, so a slow reply doesn't leave you guessing.
 
-It works in Claude Code (as a plugin) and on claude.ai (as a Chrome
+It works in **Claude Code** (as a plugin) and on **claude.ai** (as a Chrome
 extension). **Everything stays on your machine:** it never reads or stores your
 prompts or Claude's replies, and it sends nothing anywhere. Its only network
 request is a status check on status.claude.com, which you can turn off. See
@@ -18,9 +18,11 @@ RainDragon ETA is an independent project by
 [RainDragon AI](https://inference.raindragon.ai/?utm_source=raindragon-eta&utm_medium=readme).
 It is not made, endorsed or supported by Anthropic.
 
+---
+
 ## What you'll see
 
-In Claude Code, when you send a prompt:
+**In Claude Code**, when you send a prompt:
 
 ```
 RainDragon ETA: Half of your similar turns took 40s–3m (from 57 turns)
@@ -36,7 +38,7 @@ a live clock while the turn runs:
 If a turn runs past the range, it adds "longer than usual". The clock clears
 when the turn ends.
 
-On claude.ai, just above the message box:
+**On claude.ai**, just above the message box:
 
 ```
 RainDragon ETA · Half of your similar replies took 20s–1m, 300–800 words (from 24)
@@ -66,9 +68,11 @@ wide on purpose: people's pace varies.
 Turns that fail, turns you stop, and turns during a major Claude incident are
 left out, so they don't skew your range.
 
+---
+
 ## Privacy
 
-* RainDragon ETA records only timings (and reply length on claude.ai), plus
+* RainDragon ETA records **only timings** (and reply length on claude.ai), plus
   the sizes used to match similar turns. It never reads or stores your prompts
   or Claude's replies.
 * History stays on your computer. Only your latest 300 completed turns are used.
@@ -76,6 +80,8 @@ left out, so they don't skew your range.
   check is on. No telemetry, no analytics.
 
 Full details: [PRIVACY.md](PRIVACY.md).
+
+---
 
 ## Install
 
@@ -103,6 +109,8 @@ The extension reads claude.ai's page structure to see when a reply starts and
 ends. If claude.ai changes its page, the extension may stop showing ranges
 until we release an update.
 
+---
+
 ## Settings
 
 | Setting | Plugin | Extension | Default |
@@ -112,8 +120,8 @@ until we release an update.
 | Show actual time after each turn | ✓ | ✓ (plus length) | Off |
 | Check Claude's status page for incidents | ✓ | ✓ | On |
 
-* Plugin: run `/plugin configure raindragon-eta@raindragon`
-* Extension: Extensions → RainDragon ETA → Details → Extension options
+* **Plugin:** run `/plugin configure raindragon-eta@raindragon`
+* **Extension:** Extensions → RainDragon ETA → Details → Extension options
   (the options page also shows how often the range held, and has **Copy
   diagnostics** and **Clear my history**)
 
@@ -123,14 +131,18 @@ until we release an update.
 * `/raindragon-eta:doctor`: version, settings and counts for bug reports (no
   prompts, file names or session IDs)
 
+---
+
 ## Turn it off or remove it
 
 | | Turn off (keeps history) | Remove completely |
 | :- | :- | :- |
-| Plugin | Set **Enabled** off, or `export RAINDRAGON_ETA_OFF=1` | `claude plugin uninstall raindragon-eta@raindragon`, then delete `~/.claude/plugins/data/raindragon-eta*` and `~/.raindragon-eta` |
-| Extension | Untick **On** in its options | **Remove** it at `chrome://extensions` (Chrome deletes its history too) |
+| **Plugin** | Set **Enabled** off, or `export RAINDRAGON_ETA_OFF=1` | `claude plugin uninstall raindragon-eta@raindragon`, then delete `~/.claude/plugins/data/raindragon-eta*` and `~/.raindragon-eta` |
+| **Extension** | Untick **On** in its options | **Remove** it at `chrome://extensions` (Chrome deletes its history too) |
 
 When off, nothing is shown and nothing is recorded.
+
+---
 
 ## Report a bug
 
@@ -138,6 +150,8 @@ Run `/raindragon-eta:doctor` (plugin) or **Copy diagnostics** (extension
 options) and paste the output into a
 [new issue](https://github.com/raindragon-ai/raindragon-eta/issues/new), with
 what you saw and what you expected.
+
+---
 
 ## How it works
 
@@ -154,6 +168,8 @@ match step by step until there are.
 
 **Incidents:** Only major incidents are flagged. Minor and "degraded" periods
 didn't measurably slow turns in our testing ([details](CLAIMS.md)).
+
+---
 
 ## For developers
 
@@ -179,6 +195,8 @@ shasum -a 256 -c SHA256SUMS    # macOS
 
 Both lines should say `OK`. Builds are reproducible: running
 `python3 release.py` on the tagged commit produces identical files.
+
+---
 
 ## License
 
