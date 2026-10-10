@@ -46,9 +46,12 @@ def files_under(root: str) -> list:
 
 
 def build_zip(src: str, dest: str, prefix: str) -> None:
+    # LICENSE travels inside each zip: Apache-2.0 asks for a copy with every
+    # redistribution, and the zips are what people download.
+    entries = [(os.path.relpath(p, src).replace(os.sep, "/"), p) for p in files_under(src)]
+    entries.append(("LICENSE", os.path.join(HERE, "LICENSE")))
     with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as z:
-        for path in files_under(src):
-            rel = os.path.relpath(path, src).replace(os.sep, "/")
+        for rel, path in sorted(entries):
             info = zipfile.ZipInfo(prefix + rel, date_time=FIXED_TIME)
             info.external_attr = 0o644 << 16
             info.compress_type = zipfile.ZIP_DEFLATED

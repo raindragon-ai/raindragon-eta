@@ -181,4 +181,4 @@ Both lines should say `OK`. Builds are reproducible: running
 
 ## License
 
-Apache-2.0 (LICENSE file to be added before release).
+[Apache-2.0](LICENSE).
