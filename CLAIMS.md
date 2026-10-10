@@ -27,9 +27,17 @@ range from your own history.
    (80% for the wide range), reported per user in the beta (RAI-332).
 
 2. **It tells you when it does not know yet.**
-   No range before 10 turns; the wide range, marked "still learning", until
-   30. *Measured:* behaviour is fixed by the rule and covered by tests; first
-   run is shown in the docs.
+   Plugin: for your first 10 turns it shows the wide (8 in 10) range of
+   *typical* Claude Code turns of the same prompt and conversation size, from
+   a built-in table, and says so ("typical ... yours from turn 10"). Then
+   your own wide range, marked "still learning", until 30. Extension: no
+   range before 10 replies (no claude.ai table yet), then the same rule.
+   *Measured:* the built-in table comes from 1,682 real Claude Code turns
+   (`tools/build_prior.py`); built from the older 70% and scored on the newer
+   30%, the 8-in-10 range held 76% and the half range 46%. Those turns are
+   all from one person, so this is a starting point, not a promise about
+   your pace; `/raindragon-eta:eval` reports how the typical range did for
+   you (`by_band.typical`). Behaviour is covered by tests.
 
 3. **It tells you when Claude is having a major problem.**
    It reads status.claude.com and warns only during a MAJOR incident (impact

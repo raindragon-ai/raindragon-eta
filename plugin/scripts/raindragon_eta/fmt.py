@@ -21,9 +21,13 @@ def duration(seconds: float) -> str:
     return "%dh" % h if m == 0 else "%dh%02dm" % (h, m)
 
 
-def band_line(low: float, high: float, n: int, coverage: str, learning: bool = False) -> str:
+def band_line(low: float, high: float, n: int, coverage: str, learning: bool = False,
+              typical: bool = False, learned: int = 0, ready_at: int = 10) -> str:
     share = "Half" if coverage == "50" else "8 in 10"
     lo, hi = duration(low), duration(high)
     span = lo if lo == hi else "%s–%s" % (lo, hi)
+    if typical:
+        return ("%s typical Claude Code turns like this took %s (yours from turn %d, %d so far)"
+                % (share, span, ready_at, learned))
     tail = "from %d turns, still learning" % n if learning else "from %d turns" % n
     return "%s of your similar turns took %s (%s)" % (share, span, tail)

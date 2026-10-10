@@ -11,20 +11,56 @@ import raindragon_eta_hook as hook  # noqa: E402
 from raindragon_eta import fmt, predict, status, store  # noqa: E402
 
 
+PRIOR = {"groups": {
+    "all": {"n": 500, "10": 5.0, "25": 9.0, "75": 80.0, "90": 240.0},
+    "short": {"n": 400, "10": 4.0, "25": 8.0, "75": 70.0, "90": 200.0},
+    "short/small": {"n": 60, "10": 5.0, "25": 10.0, "75": 17.0, "90": 25.0},
+}}
+
+
+@pytest.fixture(autouse=True)
+def fixed_prior(monkeypatch):
+    monkeypatch.setattr(predict, "_prior_cache", PRIOR)
+
+
 def rec(dur, ok=True, incident=False, pb="short", cb="small", effort="high"):
     return {"t": 0, "dur": dur, "pb": pb, "cb": cb, "effort": effort, "ok": ok, "incident": incident}
 
 
 # ---------- predict ----------
 
-def test_no_band_before_min_ready():
+def test_typical_band_before_min_ready():
     hist = [rec(30)] * (predict.MIN_READY - 1)
-    assert predict.predict(hist, 10, 0, "high") is None
+    b = predict.predict(hist, 10, 0, "high", "50")
+    # the built-in wide band for this size, whatever the setting
+    assert b.typical and b.learning and b.coverage == "80"
+    assert (b.low, b.high, b.group) == (5.0, 25.0, "typical prompt+context")
+
+
+def test_typical_band_narrows_like_the_users_own():
+    b = predict.predict([], 10, 500_000, None)          # short/medium: not shipped
+    assert (b.low, b.high, b.group) == (4.0, 200.0, "typical prompt")
+    b = predict.predict([], 5000, 0, None)              # long: not shipped
+    assert (b.low, b.high, b.group) == (5.0, 240.0, "typical")
+
+
+def test_no_band_without_a_built_in_table(monkeypatch):
+    monkeypatch.setattr(predict, "_prior_cache", {})
+    assert predict.predict([rec(30)] * 3, 10, 0, "high") is None
+
+
+def test_shipped_built_in_table_is_sane(monkeypatch):
+    monkeypatch.setattr(predict, "_prior_cache", None)
+    groups = predict.load_prior()["groups"]
+    assert "all" in groups
+    for g in groups.values():
+        assert g["n"] >= predict.PRIOR_MIN
+        assert 0 < g["10"] <= g["25"] <= g["75"] <= g["90"]
 
 
 def test_failed_and_incident_turns_never_count():
     hist = [rec(30)] * (predict.MIN_READY - 1) + [rec(900, ok=False)] * 20 + [rec(900, incident=True)] * 20
-    assert predict.predict(hist, 10, 0, "high") is None
+    assert predict.predict(hist, 10, 0, "high").typical
     hist.append(rec(30))
     b = predict.predict(hist, 10, 0, "high")
     assert b.low == b.high == 30
@@ -167,7 +203,17 @@ def prompt(i, sid="s1"):
             "transcript_path": "/nonexistent"}
 
 
-def test_first_run_says_learning_once_then_nothing(env):
+def test_first_run_shows_the_typical_band(env):
+    out = run("prompt", prompt(1), env, 1000)
+    assert out["systemMessage"] == ("RainDragon ETA: 8 in 10 typical Claude Code turns like this "
+                                    "took 5s–25s (yours from turn 10, 0 so far)")
+    run("stop", {"session_id": "s1", "prompt_id": "p1"}, env, 1030)
+    out = run("prompt", prompt(2), env, 2000)  # every turn, unlike the learning note
+    assert "(yours from turn 10, 1 so far)" in out["systemMessage"]
+
+
+def test_without_a_table_first_run_says_learning_once(env, monkeypatch):
+    monkeypatch.setattr(predict, "_prior_cache", {})
     out = run("prompt", prompt(1), env, 1000)
     assert out["systemMessage"].startswith("RainDragon ETA: learning your pace")
     assert "(0 so far)" in out["systemMessage"]
@@ -222,6 +268,14 @@ def test_show_result(env):
     env = dict(env, CLAUDE_PLUGIN_OPTION_SHOW_RESULT="true")
     run("prompt", prompt(1), env, 0)
     out = run("stop", {"session_id": "s1", "prompt_id": "p1"}, env, 75)
+    assert out == {"systemMessage": "RainDragon ETA: took 1m (8 in 10 of typical turns took 5s–25s)"}
+
+
+def test_show_result_without_any_band(env, monkeypatch):
+    monkeypatch.setattr(predict, "_prior_cache", {})
+    env = dict(env, CLAUDE_PLUGIN_OPTION_SHOW_RESULT="true")
+    run("prompt", prompt(1), env, 0)
+    out = run("stop", {"session_id": "s1", "prompt_id": "p1"}, env, 75)
     assert out == {"systemMessage": "RainDragon ETA: took 1m"}
 
 
@@ -261,7 +315,8 @@ def test_garbage_input_never_fails(env):
     assert out.getvalue() == ""
 
 
-def test_old_session_markers_are_cleaned(env):
+def test_old_session_markers_are_cleaned(env, monkeypatch):
+    monkeypatch.setattr(predict, "_prior_cache", {})  # the "learning" note writes the marker
     d = env["CLAUDE_PLUGIN_DATA"]
     run("prompt", prompt(1, sid="old"), env, 0)
     old = os.path.join(d, "noted", "old")
@@ -299,15 +354,16 @@ def test_ready_band_line_has_no_learning_label(env):
 def test_evaluate_scores_only_from_the_past():
     h = [rec(10 + (i % 7)) for i in range(60)]
     e = predict.evaluate(h, "50")
-    assert e["scored"] == 60 - predict.MIN_READY
+    assert e["scored"] == 60
     assert 0 <= e["coverage"] <= 1 and e["median_ratio"] >= 1
-    assert set(e["by_band"]) == {"80", "50"}
+    assert set(e["by_band"]) == {"typical", "80", "50"}
+    assert e["by_band"]["typical"]["scored"] == predict.MIN_READY
     assert e["by_band"]["80"]["scored"] == predict.CONFIDENT - predict.MIN_READY
 
 
 def test_evaluate_ignores_failed_and_incident_turns():
     h = [rec(20) for _ in range(40)] + [rec(999, ok=False), rec(999, incident=True)]
-    assert predict.evaluate(h)["scored"] == 40 - predict.MIN_READY
+    assert predict.evaluate(h)["scored"] == 40
 
 
 def test_evaluate_on_empty_history():
@@ -329,7 +385,7 @@ def test_doctor_reports_counts_never_content(env):
     assert hook.main(["hook", "doctor"], io.StringIO(""), out, env, now=20) == 0
     d = json.loads(out.getvalue())
     assert d["version"] == hook.__version__ and d["turns_recorded"] == 1
-    assert d["phase"] == "learning (no band yet)"
+    assert d["phase"] == "learning (typical band)"
     assert d["settings"]["enabled"] is True and d["settings"]["band"] == "50"
     assert "SECRET" not in out.getvalue() and "s1" not in out.getvalue()
     assert d["made_by"] == "RainDragon AI"
@@ -348,7 +404,7 @@ def test_eval_command_prints_json(env):
     _turns(env, 15)
     out = io.StringIO()
     assert hook.main(["hook", "eval"], io.StringIO(""), out, env, now=10**6) == 0
-    assert json.loads(out.getvalue())["scored"] == 15 - predict.MIN_READY
+    assert json.loads(out.getvalue())["scored"] == 15
 
 
 def test_version_matches_plugin_manifest():
@@ -372,7 +428,8 @@ def test_prompt_leaves_pointer_and_live_fields_for_the_mod(env):
     ptr = os.path.join(env["HOME"], ".raindragon-eta", "data_dir")
     assert open(ptr).read() == env["CLAUDE_PLUGIN_DATA"]
     p = json.load(open(os.path.join(env["CLAUDE_PLUGIN_DATA"], "pending", "s1")))
-    assert p["start"] == 0 and p["learned"] == 0 and p["low"] is None
+    assert p["start"] == 0 and p["learned"] == 0 and p["typical"] is True
+    assert (p["low"], p["high"], p["cov"]) == (5.0, 25.0, "80")
 
 
 # ---------- the prompt hook never waits on the network ----------

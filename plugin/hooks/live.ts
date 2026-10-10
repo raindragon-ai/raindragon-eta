@@ -18,6 +18,7 @@ export type Pending = {
   high: number | null
   cov?: string             // "50" | "80"
   learning?: boolean | null
+  typical?: boolean | null // band from the built-in table, not the user's turns
   learned?: number         // good turns so far
   incident?: boolean
 }
@@ -51,7 +52,7 @@ export function line(p: Pending, elapsedMs: number): string {
   if (p.low != null && p.high != null) {
     const share = p.cov === '80' ? '8 in 10' : 'half'
     const lo = duration(p.low), hi = duration(p.high)
-    parts.push(`${share} took ${lo === hi ? lo : `${lo}–${hi}`}${p.learning ? ' (learning)' : ''}`)
+    parts.push(`${share} took ${lo === hi ? lo : `${lo}–${hi}`}${p.typical ? ' (typical)' : p.learning ? ' (learning)' : ''}`)
     if (elapsedMs / 1000 > p.high) parts.push('longer than usual')
   } else {
     parts.push(`learning your pace (${p.learned ?? 0}/${MIN_READY})`)

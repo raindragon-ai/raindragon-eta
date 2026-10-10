@@ -105,12 +105,15 @@ def on_prompt(inp: dict, env: dict, now: float, fetch=None) -> str:
         "effort": effort, "incident": bool(incident), "cov": band.coverage if band else coverage,
         "low": band.low if band else None, "high": band.high if band else None,
         "n": band.n if band else None, "learning": bool(band.learning) if band else None,
+        "typical": bool(band.typical) if band else None,
         "learned": predict.learned_count(history),
     })
 
     lines = []
     if band:
-        lines.append(fmt.band_line(band.low, band.high, band.n, band.coverage, band.learning))
+        lines.append(fmt.band_line(band.low, band.high, band.n, band.coverage, band.learning,
+                                   band.typical, predict.learned_count(history),
+                                   predict.MIN_READY))
     elif store.mark_noted(d, sid):
         lines.append("learning your pace. Estimates start after %d turns (%d so far)."
                      % (predict.MIN_READY, predict.learned_count(history)))
@@ -138,7 +141,9 @@ def on_stop(inp: dict, env: dict, now: float, ok: bool) -> str:
         took = "took " + fmt.duration(dur)
         if p.get("low") is not None:
             share = "half" if p.get("cov", "50") == "50" else "8 in 10"
-            took += " (%s of similar turns took %s–%s)" % (share, fmt.duration(p["low"]), fmt.duration(p["high"]))
+            kind = "typical" if p.get("typical") else "similar"
+            took += " (%s of %s turns took %s–%s)" % (share, kind, fmt.duration(p["low"]),
+                                                      fmt.duration(p["high"]))
         return PREFIX + took
     return ""
 
@@ -170,7 +175,7 @@ def doctor(env: dict, now: float) -> dict:
         "turns_used": good,
         "turns_failed": sum(1 for r in h if not r.get("ok")),
         "turns_in_incident": sum(1 for r in h if r.get("ok") and r.get("incident")),
-        "phase": ("learning (no band yet)" if good < predict.MIN_READY
+        "phase": ("learning (typical band)" if good < predict.MIN_READY
                   else "learning (wide band)" if good < predict.CONFIDENT else "ready"),
         "turns_in_progress": pending,
         "status_cache_age_s": cache_age,

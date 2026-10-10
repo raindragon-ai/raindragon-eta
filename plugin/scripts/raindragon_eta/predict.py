@@ -15,9 +15,13 @@ enough turns:
     effort
     all turns
 
-First-run rule (RAI-329): say nothing we have not measured.
+First-run rule (RAI-329): nobody should have to wait for a useful range.
 
-    fewer than MIN_READY good turns    no band; the hook says it is learning
+    fewer than MIN_READY good turns    the TYPICAL band: the wide (8 in 10)
+                                       range of Claude Code turns of the same
+                                       prompt and conversation size, from the
+                                       built-in table in prior.json (see
+                                       tools/build_prior.py), labelled "typical"
     MIN_READY .. CONFIDENT-1           the WIDE band (8 in 10) whatever the
                                        setting, labelled "still learning"
     CONFIDENT or more                  the band the user chose
@@ -37,6 +41,8 @@ the next normal turn, and counting them is what used to inflate the band.
 
 from __future__ import annotations
 
+import json
+import os
 from dataclasses import dataclass
 from typing import Iterable, Optional, Sequence
 
@@ -44,6 +50,7 @@ MIN_READY = 10       # good turns before we show any band
 CONFIDENT = 30       # good turns before we show the narrower band the user chose
 MIN_GROUP = 8        # turns a narrower group needs before we trust it
 RECENT = 300         # only the most recent turns: pace drifts with model and work
+PRIOR_MIN = 30       # turns a built-in group needs before we ship it
 
 BANDS = {"50": (0.25, 0.75), "80": (0.10, 0.90)}
 
@@ -84,6 +91,35 @@ class Band:
     group: str      # which group was used, e.g. "prompt+context+effort"
     coverage: str   # "50" or "80"
     learning: bool = False  # fewer than CONFIDENT good turns: forced wide
+    typical: bool = False   # from the built-in table, not the user's own turns
+
+
+_PRIOR_PATH = os.path.join(os.path.dirname(__file__), "prior.json")
+_prior_cache = None
+
+
+def load_prior() -> dict:
+    global _prior_cache
+    if _prior_cache is None:
+        try:
+            with open(_PRIOR_PATH) as f:
+                _prior_cache = json.load(f)
+        except (OSError, ValueError):
+            _prior_cache = {}
+    return _prior_cache
+
+
+def prior_band(prior: dict, pb: str, cb: str, coverage: str = "80") -> Optional[Band]:
+    """The built-in band for this prompt/conversation size, narrowing the same
+    way as the user's own groups: prompt+context, then prompt, then all."""
+    groups = (prior or {}).get("groups") or {}
+    lo_q, hi_q = {"50": ("25", "75"), "80": ("10", "90")}.get(coverage, ("10", "90"))
+    for name, key in (("typical prompt+context", pb + "/" + cb), ("typical prompt", pb),
+                      ("typical", "all")):
+        g = groups.get(key)
+        if g:
+            return Band(g[lo_q], g[hi_q], g["n"], name, coverage, True, True)
+    return None
 
 
 def usable(records: Iterable[dict]) -> list:
@@ -102,7 +138,7 @@ def predict(history: Iterable[dict], prompt_chars: int, transcript_bytes: int,
 def _predict_buckets(good: list, pb: str, cb: str, effort: Optional[str],
                      coverage: str) -> Optional[Band]:
     if len(good) < MIN_READY:
-        return None
+        return prior_band(load_prior(), pb, cb, "80")
     learning = len(good) < CONFIDENT
     if learning:
         coverage = "80"
@@ -129,8 +165,9 @@ def evaluate(history: Iterable[dict], coverage: str = "50") -> dict:
     Returns scored (turns with a band), hits, coverage (hits/scored), nominal
     (the band's target share), and median_ratio (median high/low: 2.0 means
     the band's top is twice its bottom). Learning-phase turns are scored at
-    the wide band they were actually shown with, so the number is what a user
-    saw, not what a mature history would show."""
+    the wide band they were actually shown with, and the first MIN_READY at
+    the built-in typical band (by_band "typical"), so the number is what a
+    user saw, not what a mature history would show."""
     good = [r for r in history
             if r.get("ok") and not r.get("incident")
             and isinstance(r.get("dur"), (int, float)) and r["dur"] > 0]
@@ -147,7 +184,7 @@ def evaluate(history: Iterable[dict], coverage: str = "50") -> dict:
         hits += hit
         if band.low > 0:
             ratios.append(band.high / band.low)
-        s = by_nominal.setdefault(band.coverage, [0, 0])
+        s = by_nominal.setdefault("typical" if band.typical else band.coverage, [0, 0])
         s[0] += 1
         s[1] += hit
     ratios.sort()

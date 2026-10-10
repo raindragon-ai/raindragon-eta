@@ -16,6 +16,11 @@ test('marks the wide learning band', () => {
     .toBe('⏱ 0:05 · 8 in 10 took 40s–3m (learning)')
 })
 
+test('marks the built-in typical band', () => {
+  expect(line({ ...band, low: 5, high: 25, cov: '80', learning: true, typical: true, learned: 2 }, 5_000))
+    .toBe('⏱ 0:05 · 8 in 10 took 5s–25s (typical)')
+})
+
 test('before any band, counts toward the first one', () => {
   expect(line({ start: 0, low: null, high: null, learned: 3 }, 12_000))
     .toBe('⏱ 0:12 · learning your pace (3/10)')
