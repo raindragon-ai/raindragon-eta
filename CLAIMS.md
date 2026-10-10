@@ -30,11 +30,14 @@ range from your own history.
    Plugin: for your first 10 turns it shows the wide (8 in 10) range of
    *typical* Claude Code turns of the same prompt and conversation size, from
    a built-in table, and says so ("typical ... yours from turn 10"). Then
-   your own wide range, marked "still learning", until 30. Extension: no
-   range before 10 replies (no claude.ai table yet), then the same rule.
+   your own wide range, marked "still learning", until 30. Extension: the
+   same rule, with a table of typical replies (time and length).
    *Measured:* the built-in table comes from 1,682 real Claude Code turns
    (`tools/build_prior.py`); built from the older 70% and scored on the newer
-   30%, the 8-in-10 range held 76% and the half range 46%. Those turns are
+   30%, the 8-in-10 range held 76% and the half range 46%. The extension's
+   table comes from 602 Claude Code turns where Claude answered in text
+   without tools (closest to a claude.ai reply; `--chat`), holdout 73% and
+   48%. It is a stand-in: no claude.ai timings were used. Those turns are
    all from one person, so this is a starting point, not a promise about
    your pace; `/raindragon-eta:eval` reports how the typical range did for
    you (`by_band.typical`). Behaviour is covered by tests.

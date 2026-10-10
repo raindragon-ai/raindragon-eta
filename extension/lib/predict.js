@@ -2,8 +2,10 @@
  *
  * Same rules as the Claude Code plugin (plugin/scripts/raindragon_eta/predict.py):
  * a BAND (middle half by default) of similar past replies, never a single
- * number; nothing until MIN_READY good replies, then the wide 8-in-10 band
- * labelled "still learning" until CONFIDENT; failed, stopped and
+ * number; under MIN_READY good replies the wide 8-in-10 band of TYPICAL
+ * replies of the same size from the built-in table (lib/prior.js, made by
+ * tools/build_prior.py --chat), then the user's own wide band labelled
+ * "still learning" until CONFIDENT; failed, stopped and
  * incident-time replies are kept out. evaluate() replays history to measure
  * how often the band held (coverage) and how wide it was.
  *
@@ -26,6 +28,28 @@
   const MIN_GROUP = 8;
   const RECENT = 300;
   const BANDS = { "50": [0.25, 0.75], "80": [0.10, 0.90] };
+
+  // Built-in table: a global in the browser (lib/prior.js loads first), a
+  // module under node. setPrior() swaps it, for tests.
+  let PRIOR = root.RainDragonEtaPrior ||
+    (typeof require === "function" ? (() => { try { return require("./prior.js"); } catch (e) { return null; } })() : null);
+  function setPrior(p) { PRIOR = p; }
+
+  // The built-in wide band for this size, narrowing like the user's own groups.
+  function priorBand(pb, cb, learned) {
+    const groups = (PRIOR && PRIOR.groups) || {};
+    for (const [name, key] of [["typical prompt+conversation", pb + "/" + cb],
+                               ["typical prompt", pb], ["typical", "all"]]) {
+      const g = groups[key];
+      if (!g) continue;
+      return {
+        dur: { low: g["10"], high: g["90"] },
+        words: g.words ? { low: g.words["10"], high: g.words["90"] } : null,
+        n: g.n, group: name, coverage: "80", learning: true, typical: true, learned,
+      };
+    }
+    return null;
+  }
 
   function promptBucket(chars) {
     if (chars < 200) return "short";
@@ -76,7 +100,7 @@
 
   function predictBuckets(good, pb, cb, mk, coverage) {
     coverage = BANDS[coverage] ? coverage : "50";
-    if (good.length < MIN_READY) return null;
+    if (good.length < MIN_READY) return priorBand(pb, cb, good.length);
     const learning = good.length < CONFIDENT;
     if (learning) coverage = "80";
     const groups = [
@@ -117,7 +141,8 @@
       const hit = b.dur.low <= r.dur && r.dur <= b.dur.high;
       if (hit) hits += 1;
       if (b.dur.low > 0) ratios.push(b.dur.high / b.dur.low);
-      const s = byBand[b.coverage] || (byBand[b.coverage] = { scored: 0, hits: 0 });
+      const key = b.typical ? "typical" : b.coverage;
+      const s = byBand[key] || (byBand[key] = { scored: 0, hits: 0 });
       s.scored += 1;
       if (hit) s.hits += 1;
     });
@@ -168,6 +193,12 @@
 
   function bandLine(p) {
     const share = p.coverage === "80" ? "8 in 10" : "Half";
+    if (p.typical) {
+      let t = share + " typical Claude replies like this took " +
+        span(duration(p.dur.low), duration(p.dur.high));
+      if (p.words) t += ", " + wordsText(p.words.low, p.words.high);
+      return t + " (yours from reply " + MIN_READY + ", " + (p.learned || 0) + " so far)";
+    }
     let s = share + " of your similar replies took " +
       span(duration(p.dur.low), duration(p.dur.high));
     if (p.words) s += ", " + wordsText(p.words.low, p.words.high);
@@ -207,6 +238,7 @@
   const api = {
     VERSION, MIN_READY, CONFIDENT, MIN_GROUP, RECENT, BANDS,
     promptBucket, contextBucket, modelKey, quantile, usable, predict, evaluate, learnedCount,
+    priorBand, setPrior,
     duration, words, wordsText, bandLine, incidentFromSummary, WEB_COMPONENTS,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;

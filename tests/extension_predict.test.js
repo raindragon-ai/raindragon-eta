@@ -6,9 +6,47 @@ const T = require("../extension/lib/predict.js");
 const rec = (dur, o = {}) => Object.assign(
   { dur, ok: true, incident: false, pb: "short", cb: "small", model: "opus 5.5 medium", words: dur * 10 }, o);
 
-test("nothing before MIN_READY good replies", () => {
+const REAL_PRIOR = require("../extension/lib/prior.js");
+const PRIOR = { groups: {
+  all: { n: 500, 10: 3, 25: 5, 75: 10, 90: 16, words: { 10: 40, 25: 80, 75: 200, 90: 290 } },
+  short: { n: 400, 10: 3, 25: 4, 75: 9, 90: 15, words: { 10: 39, 25: 70, 75: 190, 90: 280 } },
+  "short/small": { n: 170, 10: 2.5, 25: 4, 75: 8, 90: 14, words: { 10: 30, 25: 60, 75: 180, 90: 290 } },
+} };
+test.beforeEach(() => T.setPrior(PRIOR));
+
+test("typical band before MIN_READY good replies", () => {
   const h = Array.from({ length: T.MIN_READY - 1 }, (_, i) => rec(10 + i));
-  assert.equal(T.predict(h, 50, 100, "Opus 5.5 Medium"), null);
+  const p = T.predict(h, 50, 100, "Opus 5.5 Medium", "50");
+  assert.equal(p.typical, true);
+  assert.equal(p.coverage, "80");
+  assert.deepEqual(p.dur, { low: 2.5, high: 14 });
+  assert.equal(p.group, "typical prompt+conversation");
+  assert.equal(T.bandLine(p),
+    "8 in 10 typical Claude replies like this took 3s–14s, 30–290 words (yours from reply 10, 9 so far)");
+});
+
+test("typical band narrows like the user's own", () => {
+  assert.equal(T.predict([], 50, 50000, null).group, "typical prompt");   // short/medium not shipped
+  assert.equal(T.predict([], 5000, 0, null).group, "typical");            // long not shipped
+});
+
+test("no band without a built-in table", () => {
+  T.setPrior(null);
+  assert.equal(T.predict([rec(10)], 50, 100, "Opus 5.5 Medium"), null);
+});
+
+test("shipped built-in table is sane and loaded by the page before predict.js", () => {
+  const g = REAL_PRIOR.groups;
+  assert.ok(g.all);
+  for (const v of Object.values(g)) {
+    assert.ok(v.n >= 30);
+    assert.ok(0 < v["10"] && v["10"] <= v["25"] && v["25"] <= v["75"] && v["75"] <= v["90"]);
+    assert.ok(v.words["10"] <= v.words["90"]);
+  }
+  const js = require("../extension/manifest.json").content_scripts[0].js;
+  assert.ok(js.indexOf("lib/prior.js") >= 0 && js.indexOf("lib/prior.js") < js.indexOf("lib/predict.js"));
+  const html = require("node:fs").readFileSync(require.resolve("../extension/options.html"), "utf8");
+  assert.ok(html.indexOf("lib/prior.js") >= 0 && html.indexOf("lib/prior.js") < html.indexOf("lib/predict.js"));
 });
 
 test("failed, stopped-out and incident replies never count", () => {
@@ -105,7 +143,8 @@ test("one word is singular", () => {
 test("evaluate scores each reply only from earlier ones", () => {
   const h = Array.from({ length: 60 }, (_, i) => rec(10 + (i % 7)));
   const e = T.evaluate(h, "50");
-  assert.equal(e.scored, 60 - T.MIN_READY);
+  assert.equal(e.scored, 60);
+  assert.equal(e.byBand.typical.scored, T.MIN_READY);
   assert.equal(e.byBand["80"].scored, T.CONFIDENT - T.MIN_READY);
   assert.ok(e.coverage >= 0 && e.coverage <= 1 && e.medianRatio >= 1);
   assert.equal(T.evaluate([], "50").coverage, null);

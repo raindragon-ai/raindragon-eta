@@ -28,10 +28,11 @@ function render() {
   const parts = Object.keys(e.byBand).sort().reverse().map((k) => {
     const b = e.byBand[k];
     return pct(b.hits / b.scored) + " of " + b.scored + " landed in the " +
-      (k === "80" ? "8-in-10 band (target 80%)" : "middle-half band (target 50%)");
+      (k === "typical" ? "typical band of your first replies (target 80%)"
+        : k === "80" ? "8-in-10 band (target 80%)" : "middle-half band (target 50%)");
   });
   $("eval").textContent = "How often the band held on your own replies: " + parts.join("; ") +
-    ". Typical band: top is " + e.medianRatio.toFixed(1) + "x the bottom.";
+    ". Usual width: top is " + e.medianRatio.toFixed(1) + "x the bottom.";
 }
 
 function diagnostics() {
@@ -41,7 +42,7 @@ function diagnostics() {
     replies_recorded: h.length, replies_used: good,
     replies_failed: h.filter((r) => !r.ok).length,
     replies_in_incident: h.filter((r) => r.ok && r.incident).length,
-    phase: good < T.MIN_READY ? "learning (no band yet)" : good < T.CONFIDENT ? "learning (wide band)" : "ready",
+    phase: good < T.MIN_READY ? "learning (typical band)" : good < T.CONFIDENT ? "learning (wide band)" : "ready",
     coverage: e.coverage, scored: e.scored, median_ratio: e.medianRatio,
     browser: navigator.userAgent.replace(/\s*\(.*?\)\s*/g, " ").trim(),
   }, null, 2);

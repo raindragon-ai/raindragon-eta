@@ -53,14 +53,15 @@ it. You can switch to a wider range that covers about 8 in 10 turns. See
 
 ### It starts with typical times, then learns yours
 
-| Completed turns so far | Claude Code plugin | claude.ai extension |
-| :- | :- | :- |
-| 0–9 | The wider 8-in-10 range of **typical** Claude Code turns like this one | "Learning your pace" (while you type) |
-| 10–29 | Your own 8-in-10 range, marked "still learning" | Same |
-| 30+ | The range you chose (half by default) | Same |
+| Completed turns so far | What it shows |
+| :- | :- |
+| 0–9 | The wider 8-in-10 range of **typical** turns like this one (on claude.ai, also typical reply length) |
+| 10–29 | Your own 8-in-10 range, marked "still learning" |
+| 30+ | The range you chose (half by default) |
 
-The typical ranges are built in, from real Claude Code turn timings (see
-[CLAIMS.md](CLAIMS.md)). They are wide on purpose: people's pace varies.
+The typical ranges are built in, from real Claude turn timings (see
+[CLAIMS.md](CLAIMS.md)), so it is useful from your first prompt. They are
+wide on purpose: people's pace varies.
 
 Turns that fail, turns you stop, and turns during a major Claude incident are
 left out, so they don't skew your range.

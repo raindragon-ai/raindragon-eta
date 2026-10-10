@@ -26,7 +26,7 @@
     <option value="80">Middle 8 in 10 (wider, misses less often)</option>
   </select>
 </label>
-<div class="hint">Until 30 replies the wider band is used and marked "still learning".</div>
+<div class="hint">Your first 10 replies get the wider band of typical Claude replies, then yours; until 30 the wider band is used and marked "still learning".</div>
 <label><input type="checkbox" id="showResult"> Show the actual time after each reply</label>
 <label><input type="checkbox" id="checkStatus"> Check Claude status</label>
 <div class="hint">Reads status.claude.com every 2 minutes to warn when claude.ai has an incident.</div>
@@ -37,6 +37,7 @@
 <button id="copy">Copy diagnostics</button><button id="clear">Clear my history</button><span id="saved"></span>
 <div class="hint" style="margin-left:0">Diagnostics hold the version, settings and counts only: no prompts, replies or chat names.</div>
 <p class="maker">Made by <a href="https://inference.raindragon.ai/?utm_source=raindragon-eta&utm_medium=extension" target="_blank" rel="noopener">RainDragon AI</a></p>
+<script src="lib/prior.js"></script>
 <script src="lib/predict.js"></script>
 <script src="options.js"></script>
 </body>
