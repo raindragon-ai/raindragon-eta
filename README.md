@@ -1,19 +1,24 @@
 # RainDragon ETA
 
-How long turns like this one usually take you, as a range from your own
-history, and a heads-up when Claude has a major incident.
+**Know roughly how long Claude will take before you wait for it.**
 
-Made by [RainDragon AI](https://inference.raindragon.ai/?utm_source=raindragon-eta&utm_medium=readme).
+RainDragon ETA watches how long your own Claude turns take, then shows a time
+range for each new one, based on turns like it. It also warns you when Claude
+is having a major incident, so a slow reply doesn't leave you guessing.
 
-| Surface | Folder | Version |
-| :- | :- | :- |
-| Claude Code plugin | `plugin/` | 0.2.0 |
-| Chrome extension for claude.ai | `extension/` | 0.2.0 |
+It works in Claude Code (as a plugin) and on claude.ai (as a Chrome
+extension). **Everything stays on your machine:** it never reads or stores your
+prompts or Claude's replies, and it sends nothing anywhere. Its only network
+request is a status check on status.claude.com, which you can turn off. See
+[Privacy](#privacy).
 
-See [CLAIMS.md](CLAIMS.md) for what we say about it and what we do not, and
-[PRIVACY.md](PRIVACY.md) for what it stores.
+<!-- TODO: screenshot or short GIF: the range appearing in Claude Code, then the live clock counting up -->
 
-## What you see
+RainDragon ETA is an independent project by
+[RainDragon AI](https://inference.raindragon.ai/?utm_source=raindragon-eta&utm_medium=readme).
+It is not made, endorsed or supported by Anthropic.
+
+## What you'll see
 
 In Claude Code, when you send a prompt:
 
@@ -22,112 +27,158 @@ RainDragon ETA: Half of your similar turns took 40s–3m (from 57 turns)
 ```
 
 On Claude Code versions that support plugin mods, the status line also shows
-a live clock next to the range while the turn runs, cleared when it ends:
+a live clock while the turn runs:
 
 ```
 ⏱ 0:42 · half took 40s–3m
 ```
 
-with "longer than usual" once a turn runs past the range. Older versions get
-the message above only.
+If a turn runs past the range, it adds "longer than usual". The clock clears
+when the turn ends.
 
-On claude.ai, just above the message box, for both time and length:
+On claude.ai, just above the message box:
 
 ```
 RainDragon ETA · Half of your similar replies took 20s–1m, 300–800 words (from 24)
 ```
 
-and a running clock while Claude replies. It is a **range**, never a single
-number: about half of your turns land inside the middle-half range.
+plus a running clock while Claude replies.
 
-**First run.** It has nothing to go on until it has seen your turns:
+### Why a range, not a single number
 
-| Your good turns so far | What it shows |
-| :- | :- |
-| 0–9 | "learning your pace", once per session (claude.ai: while you type) |
-| 10–29 | the wider 8-in-10 range, marked "still learning" |
-| 30+ | the range you chose (middle half by default) |
+Claude's response times vary a lot, so one number would usually be wrong. The
+range is honest about that: by default, about half your turns finish inside
+it. You can switch to a wider range that covers about 8 in 10 turns. See
+[CLAIMS.md](CLAIMS.md) for exactly what we promise and what we don't.
 
-Failed turns, turns you stop, and turns during a major Claude incident are
-never counted. Minor and "degraded" periods are not flagged: they did not
-slow turns down when measured.
+### It starts with typical times, then learns yours
+
+| Completed turns so far | Claude Code plugin | claude.ai extension |
+| :- | :- | :- |
+| 0–9 | The wider 8-in-10 range of **typical** Claude Code turns like this one | "Learning your pace" (while you type) |
+| 10–29 | Your own 8-in-10 range, marked "still learning" | Same |
+| 30+ | The range you chose (half by default) | Same |
+
+The typical ranges are built in, from real Claude Code turn timings (see
+[CLAIMS.md](CLAIMS.md)). They are wide on purpose: people's pace varies.
+
+Turns that fail, turns you stop, and turns during a major Claude incident are
+left out, so they don't skew your range.
+
+## Privacy
+
+* RainDragon ETA records only timings (and reply length on claude.ai), plus
+  the sizes used to match similar turns. It never reads or stores your prompts
+  or Claude's replies.
+* History stays on your computer. Only your latest 300 completed turns are used.
+* The only network request is to status.claude.com, and only if the status
+  check is on. No telemetry, no analytics.
+
+Full details: [PRIVACY.md](PRIVACY.md).
 
 ## Install
 
 ### Claude Code plugin
 
-Needs `python3` on your PATH. No other dependencies.
+Requires `python3` on your PATH. No other dependencies. Works on macOS and Linux.
 
 ```bash
-claude plugin marketplace add <repo URL or path>
+claude plugin marketplace add https://github.com/raindragon-ai/raindragon-eta
 claude plugin install raindragon-eta@raindragon
 ```
 
-Or for one session from a checkout: `claude --plugin-dir plugin/`.
+To try it for one session from a checkout: `claude --plugin-dir plugin/`
 
-Options (`/plugin configure raindragon-eta@raindragon`): **Enabled**, band width
-`50` or `80`, show the actual time after each turn, check Claude status.
+### Chrome extension (claude.ai)
 
-Commands:
+1. Download `raindragon-eta-extension-<version>.zip` from the
+   [latest release](https://github.com/raindragon-ai/raindragon-eta/releases/latest)
+   and unzip it.
+2. Open `chrome://extensions` and turn on **Developer mode**.
+3. Click **Load unpacked** and choose the unzipped `raindragon-eta-extension` folder.
+4. Open claude.ai and start typing.
 
-* `/raindragon-eta:eval`: how often the range held on your own past turns.
-* `/raindragon-eta:doctor`: version, settings and counts, for a bug report. It holds
-  no prompts, file names or session ids.
+The extension reads claude.ai's page structure to see when a reply starts and
+ends. If claude.ai changes its page, the extension may stop showing ranges
+until we release an update.
 
-### Chrome extension
+## Settings
 
-1. Download `raindragon-eta-extension-<version>.zip` from the release and unzip it.
-2. Open `chrome://extensions`, turn on **Developer mode**, click **Load
-   unpacked** and pick the unzipped `raindragon-eta-extension` folder.
-3. Open claude.ai and start typing.
+| Setting | Plugin | Extension | Default |
+| :- | :-: | :-: | :- |
+| On/off | ✓ | ✓ | On |
+| Range: half (50%) or 8 in 10 (80%) | ✓ | ✓ | Half |
+| Show actual time after each turn | ✓ | ✓ (plus length) | Off |
+| Check Claude's status page for incidents | ✓ | ✓ | On |
 
-Options (Extensions → RainDragon ETA → Details → Extension options): **On**, band
-width, show the actual time and length after each reply, check Claude status,
-how often the range held, **Copy diagnostics**, **Clear my history**.
+* Plugin: run `/plugin configure raindragon-eta@raindragon`
+* Extension: Extensions → RainDragon ETA → Details → Extension options
+  (the options page also shows how often the range held, and has **Copy
+  diagnostics** and **Clear my history**)
+
+### Plugin commands
+
+* `/raindragon-eta:eval`: how often the range held on your own past turns
+* `/raindragon-eta:doctor`: version, settings and counts for bug reports (no
+  prompts, file names or session IDs)
+
+## Turn it off or remove it
+
+| | Turn off (keeps history) | Remove completely |
+| :- | :- | :- |
+| Plugin | Set **Enabled** off, or `export RAINDRAGON_ETA_OFF=1` | `claude plugin uninstall raindragon-eta@raindragon`, then delete `~/.claude/plugins/data/raindragon-eta*` and `~/.raindragon-eta` |
+| Extension | Untick **On** in its options | **Remove** it at `chrome://extensions` (Chrome deletes its history too) |
+
+When off, nothing is shown and nothing is recorded.
+
+## Report a bug
+
+Run `/raindragon-eta:doctor` (plugin) or **Copy diagnostics** (extension
+options) and paste the output into a
+[new issue](https://github.com/raindragon-ai/raindragon-eta/issues/new), with
+what you saw and what you expected.
+
+## How it works
+
+**Plugin:** A `UserPromptSubmit` hook starts the clock and shows the range as
+a message only you see; nothing is added to Claude's context. The `Stop` hook
+saves the duration; `StopFailure` marks it as failed.
+
+**Extension:** Watches claude.ai's own reply markers (`data-is-streaming`) to
+see when a reply starts and ends.
+
+**"Similar" turns** are matched by prompt size, conversation length, and model
+or effort level. If there aren't at least 8 matching turns, it widens the
+match step by step until there are.
+
+**Incidents:** Only major incidents are flagged. Minor and "degraded" periods
+didn't measurably slow turns in our testing ([details](CLAIMS.md)).
+
+## For developers
+
+| Surface | Folder | Version |
+| :- | :- | :- |
+| Claude Code plugin | `plugin/` | 0.2.0 |
+| Chrome extension | `extension/` | 0.2.0 |
+
+```bash
+python3 -m pytest -q tests   # plugin tests
+node --test tests/           # extension tests
+python3 release.py           # builds dist/*.zip and dist/SHA256SUMS
+```
 
 ### Verify a download
 
-Each release has a `SHA256SUMS` file. In the folder with the zips:
+Each release includes a `SHA256SUMS` file. In the folder with the zips:
 
 ```bash
 sha256sum -c SHA256SUMS        # Linux
 shasum -a 256 -c SHA256SUMS    # macOS
 ```
 
-Both lines must say `OK`. The zips are reproducible: `python3 release.py`
-on the tagged commit builds the same bytes.
+Both lines should say `OK`. Builds are reproducible: running
+`python3 release.py` on the tagged commit produces identical files.
 
-## Turn it off, or remove it
+## License
 
-| | Turn off (keeps history) | Remove completely |
-| :- | :- | :- |
-| Plugin | set **Enabled** off, or `export RAINDRAGON_ETA_OFF=1` | `claude plugin uninstall raindragon-eta@raindragon`, then delete `~/.claude/plugins/data/raindragon-eta*` and `~/.raindragon-eta` |
-| Extension | untick **On** in its options | **Remove** on `chrome://extensions` (Chrome deletes its stored history with it) |
-
-Off means nothing is shown and nothing is recorded.
-
-## Report a bug
-
-Run `/raindragon-eta:doctor` (plugin) or **Copy diagnostics** (extension options)
-and paste the output into the report, with what you saw and what you
-expected. The output names the version, so we know which build you have.
-
-## How it works
-
-Plugin: a `UserPromptSubmit` hook starts the clock and shows the range as a
-user-only message (nothing is added to Claude's context); `Stop` saves the
-duration; `StopFailure` saves it as failed. Extension: reads claude.ai's own
-page markers (`assistant-message` with `data-is-streaming`) to see when a
-reply starts and ends; it never reads or stores the text.
-
-"Similar" narrows by prompt size, conversation size and effort or model, and
-falls back to broader groups until one has at least 8 turns. Only your most
-recent 300 good turns are used.
-
-## Develop
-
-```bash
-python3 -m pytest -q tests   # plugin
-node --test tests/           # extension
-python3 release.py           # dist/*.zip + dist/SHA256SUMS
-```
+Apache-2.0 (LICENSE file to be added before release).
