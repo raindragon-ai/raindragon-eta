@@ -171,7 +171,7 @@ def on_stop(inp: dict, env: dict, now: float, ok: bool, spawn=None) -> str:
     if p.get("pid"):
         api.queue_outcome(d, {
             "prediction_id": p["pid"], "install_id": api.install_id(d),
-            "output_tokens": api.first_reply_tokens(inp.get("transcript_path")) if ok else None,
+            "output_tokens": None, "transcript_path": inp.get("transcript_path") if ok else None,
             "duration_ms": int(dur * 1000), "failed": not ok}, spawn=spawn)
     if ok and _flag(env, "SHOW_RESULT", False):
         took = "took " + fmt.duration(dur)

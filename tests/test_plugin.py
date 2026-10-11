@@ -617,13 +617,56 @@ def test_stop_records_the_prediction_and_queues_the_outcome(share_env, tmp_path)
     d = share_env["CLAUDE_PLUGIN_DATA"]
     assert store.read_history(d)[-1]["pred"] == 900
     queued = json.load(open(os.path.join(d, "outbox", "etp_" + "a" * 32 + ".json")))
-    assert queued == {"prediction_id": "etp_" + "a" * 32, "install_id": api.install_id(d),
-                      "output_tokens": 321, "duration_ms": 42000, "failed": False}
+    assert queued["output_tokens"] is None and queued["transcript_path"] == t
     assert spawned == [d]
     calls = []
     assert api.flush_outcomes(share_env, d, post=_fake_post(calls)) == 1
-    assert calls[0][0].endswith("/v1/eta/outcome") and calls[0][1] == queued
+    assert calls[0][0].endswith("/v1/eta/outcome")
+    assert calls[0][1] == {"prediction_id": "etp_" + "a" * 32, "install_id": api.install_id(d),
+                           "output_tokens": 321, "duration_ms": 42000, "failed": False}
     assert not os.listdir(os.path.join(d, "outbox"))
+
+
+def test_outcome_waits_for_the_reply_to_reach_the_transcript(share_env, tmp_path):
+    # Claude Code can run the Stop hook before writing the reply's usage.
+    d = share_env["CLAUDE_PLUGIN_DATA"]
+    path = tmp_path / "t.jsonl"
+    t = _transcript(path, [_user("how does it work")])
+    api.queue_outcome(d, {"prediction_id": "etp_" + "c" * 32, "install_id": api.install_id(d),
+                          "output_tokens": None, "transcript_path": t,
+                          "duration_ms": 7914, "failed": False}, spawn=lambda d: None)
+    slept = []
+
+    def sleep(s):
+        slept.append(s)
+        if len(slept) == 3:          # the reply lands 1.5 s later
+            _transcript(path, [_user("how does it work"), _asst("m1", "ok", out=521)])
+    calls = []
+    assert api.flush_outcomes(share_env, d, post=_fake_post(calls), sleep=sleep) == 1
+    assert calls[0][1]["output_tokens"] == 521 and "transcript_path" not in calls[0][1]
+    assert api.last_model(d) == "claude-opus-5-5"
+
+
+def test_outcome_gives_up_waiting_and_sends_without_length(share_env, tmp_path):
+    d = share_env["CLAUDE_PLUGIN_DATA"]
+    t = _transcript(tmp_path / "t.jsonl", [_user("hi")])
+    api.queue_outcome(d, {"prediction_id": "etp_" + "d" * 32, "output_tokens": None,
+                          "transcript_path": t, "failed": False}, spawn=lambda d: None)
+    calls = []
+    api.flush_outcomes(share_env, d, post=_fake_post(calls), sleep=lambda s: None)
+    assert calls[0][1]["output_tokens"] is None and "transcript_path" not in calls[0][1]
+
+
+def test_first_prompt_uses_the_last_model_seen(share_env, tmp_path):
+    d = share_env["CLAUDE_PLUGIN_DATA"]
+    calls = []
+    t = _transcript(tmp_path / "t.jsonl", [])
+    hook.on_prompt(dict(prompt(1), transcript_path=t), share_env, 1000, post=_fake_post(calls))
+    assert calls[-1][1]["model"] == "claude"                    # nothing known yet
+    old = _transcript(tmp_path / "old.jsonl", [_user("a"), _asst("m1", "b", out=5)])
+    hook.on_prompt(dict(prompt(2), transcript_path=old), share_env, 1001, post=_fake_post(calls))
+    hook.on_prompt(dict(prompt(3), transcript_path=t), share_env, 1002, post=_fake_post(calls))
+    assert calls[-1][1]["model"] == "claude-opus-5-5"
 
 
 def test_outcomes_retry_then_expire(share_env, tmp_path):

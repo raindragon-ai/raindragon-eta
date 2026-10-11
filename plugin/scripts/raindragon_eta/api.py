@@ -134,7 +134,12 @@ def conversation(transcript_path: Optional[str], prompt: str) -> dict:
 def first_reply_tokens(transcript_path: Optional[str]) -> Optional[int]:
     """Output tokens of the first reply after the latest real prompt: the reply
     the prediction was for."""
-    out, after, first_id = None, False, None
+    return first_reply(transcript_path)[0]
+
+
+def first_reply(transcript_path: Optional[str]):
+    """(output tokens, model) of the first reply after the latest real prompt."""
+    out, after, first_id, model = None, False, None, None
     for d in _entries(transcript_path):
         t = d.get("type")
         if t == "user" and _real_prompt(d):
@@ -144,12 +149,33 @@ def first_reply_tokens(transcript_path: Optional[str]) -> Optional[int]:
             if m.get("model") in (None, "<synthetic>"):
                 continue
             if first_id is None:
-                first_id = m.get("id")
+                first_id, model = m.get("id"), m.get("model")
             if m.get("id") == first_id:
                 n = (m.get("usage") or {}).get("output_tokens")
                 if isinstance(n, int):
                     out = max(out or 0, n)
-    return out
+    return out, model
+
+
+def last_model(d: str) -> Optional[str]:
+    """The Claude model of this install's latest reply: the first prompt of a
+    conversation has no reply yet to read it from."""
+    try:
+        with open(os.path.join(d, "last_model")) as f:
+            v = f.read().strip()
+        return v if 0 < len(v) <= 100 else None
+    except OSError:
+        return None
+
+
+def _remember_model(d: str, model: Optional[str]) -> None:
+    if not model or model == "<synthetic>":
+        return
+    try:
+        with open(os.path.join(d, "last_model"), "w") as f:
+            f.write(model)
+    except OSError:
+        pass
 
 
 def _post(url: str, body: dict, timeout: float) -> Optional[dict]:
@@ -165,8 +191,10 @@ def predict(env: dict, d: str, conv: dict, version: str, post=None) -> Optional[
     """{"prediction_id", "output_tokens", "model_version"} or None on any failure."""
     if not conv.get("text", "").strip():
         return None
+    if conv.get("model"):
+        _remember_model(d, conv["model"])
     body = {"install_id": install_id(d), "client": "plugin", "client_version": version,
-            "model": conv.get("model") or "claude", "text": conv["text"],
+            "model": conv.get("model") or last_model(d) or "claude", "text": conv["text"],
             "prompt_tokens": conv["prompt_tokens"], "cached_tokens": conv["cached_tokens"],
             "turn_idx": conv["turn_idx"]}
     try:
@@ -203,10 +231,34 @@ def _spawn_flush(d: str) -> None:
         pass
 
 
-def flush_outcomes(env: dict, d: str, post=None, max_age: float = 86400, now=None) -> int:
+#: The Stop hook can run before Claude Code has written the reply's usage to the
+#: transcript, so the outcome sender reads it, waiting up to this long.
+REPLY_WAIT_SECONDS = 10.0
+
+
+def _fill_reply(d: str, body: dict, wait: float, sleep) -> dict:
+    """The outcome to send: output_tokens read from the local transcript (whose
+    path is never sent), the model remembered for the next first prompt."""
+    path = body.pop("transcript_path", None)
+    if path and body.get("output_tokens") is None and not body.get("failed"):
+        waited = 0.0
+        while True:
+            tokens, model = first_reply(path)
+            if tokens is not None or waited >= wait:
+                break
+            sleep(0.5)
+            waited += 0.5
+        body["output_tokens"] = tokens
+        _remember_model(d, model)
+    return body
+
+
+def flush_outcomes(env: dict, d: str, post=None, max_age: float = 86400, now=None,
+                   wait: float = REPLY_WAIT_SECONDS, sleep=None) -> int:
     """Send queued outcomes; drop each once sent, rejected, or a day old."""
     import time
     now = time.time() if now is None else now
+    sleep = sleep or time.sleep
     folder = os.path.join(d, "outbox")
     try:
         names = sorted(n for n in os.listdir(folder) if n.endswith(".json"))
@@ -217,7 +269,7 @@ def flush_outcomes(env: dict, d: str, post=None, max_age: float = 86400, now=Non
         path = os.path.join(folder, name)
         try:
             with open(path) as f:
-                body = json.load(f)
+                body = _fill_reply(d, json.load(f), wait, sleep)
             (post or _post)(base_url(env) + "/v1/eta/outcome", body, 10)
             sent += 1
             os.remove(path)
