@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { clock, duration, line, safeSession } from './live.ts'
+import { clock, duration, line, safeSession, tokens } from './live.ts'
 
 const band = { start: 0, low: 40, high: 180, cov: '50', learning: false, learned: 57 }
 
@@ -42,4 +42,10 @@ test('session ids map to the same file name as the hook', () => {
   expect(safeSession('ab-12_x')).toBe('ab-12_x')
   expect(safeSession('a/b:c')).toBe('a_b_c')
   expect(safeSession('')).toBe('nosession')
+})
+
+test('shows the predicted reply length', () => {
+  const l = line({ start: 0, low: 20, high: 60, cov: '50', pred: 937 }, 5000)
+  expect(l).toBe('⏱ 0:05 · reply ~940 tok · half took 20s–1m')
+  expect(tokens(12345)).toBe('~12,000 tok')
 })

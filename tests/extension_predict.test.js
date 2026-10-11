@@ -162,3 +162,36 @@ test("options page names the maker with a safe outbound link", () => {
   assert.ok(a[1].startsWith("https://inference.raindragon.ai/?utm_source=raindragon-eta&utm_medium=extension"));
   assert.match(a[0], /rel="noopener"/);
 });
+
+// ---------- RainDragon's predicted length ----------
+
+test("model labels map to API model ids", () => {
+  assert.equal(T.modelId("Opus 5.5 Medium"), "claude-opus-5-5");
+  assert.equal(T.modelId("Sonnet 5"), "claude-sonnet-5");
+  assert.equal(T.modelId("Claude Haiku 5.5 · Extended"), "claude-haiku-5-5");
+  assert.equal(T.modelId(""), "claude");
+});
+
+test("predicted band scales the user's own pace", () => {
+  const h = Array.from({ length: 40 }, (_, i) => rec(i + 1, { pred: 100 }));
+  const b = T.predictedBand(h, 1000, "50");
+  assert.equal(b.group, "predicted length");
+  assert.equal(b.n, 40);
+  assert.equal(b.learning, false);
+  assert.deepEqual([Math.round(b.dur.low * 10) / 10, Math.round(b.dur.high * 10) / 10], [107.5, 302.5]);
+  assert.equal(T.predictedBand(h.slice(0, T.MIN_READY - 1), 1000), null);
+  assert.equal(T.predictedBand(h.slice(0, 20), 1000, "50").coverage, "80");
+  assert.equal(T.predictedBand(h, 0, "50"), null);
+});
+
+test("evaluatePredicted scores both bands on the same replies", () => {
+  const h = Array.from({ length: 60 }, (_, i) => rec(10 + (i % 7), { pred: 100 }));
+  const e = T.evaluatePredicted(h, "50");
+  assert.equal(e.predicted.scored, 60 - T.MIN_READY);
+  assert.equal(e.buckets.scored, e.predicted.scored);
+});
+
+test("predicted length reads as tokens", () => {
+  assert.equal(T.tokensText(937), "~940 tokens");
+  assert.equal(T.tokensText(12345), "~12,000 tokens");
+});

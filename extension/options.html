@@ -14,10 +14,25 @@
   #version { color: #777; font-size: 12px; }
   .maker { margin-top: 24px; color: #777; font-size: 12px; }
   .maker a { color: inherit; }
+  .notice { border: 2px solid #c2410c; border-radius: 8px; padding: 12px 14px; margin: 16px 0; }
+  .notice h3 { margin: 0 0 6px; font-size: 15px; }
+  .notice button { font-weight: 600; }
 </style>
 </head>
 <body>
 <h2>RainDragon ETA <span id="version"></span></h2>
+<div class="notice" id="welcome" hidden>
+  <h3>Before you start: what RainDragon ETA sends</h3>
+  <p>When you send a message on claude.ai, RainDragon ETA sends the conversation's text
+  to RainDragon (inference.raindragon.ai). RainDragon's model predicts how long Claude's
+  reply will be, and RainDragon <strong>keeps the text to improve that model</strong>.
+  Secret-looking strings such as API keys are removed before it is stored.
+  Nothing is sent while you type.</p>
+  <label><input type="checkbox" id="welcomeShare" checked> Share text with RainDragon</label>
+  <div class="hint">Unticked, nothing leaves this browser except the status.claude.com check,
+  and estimates come from your own past replies only. You can change this below at any time.</div>
+  <button id="continue">Continue</button>
+</div>
 <label><input type="checkbox" id="enabled"> On</label>
 <div class="hint">Off hides the estimate and stops recording. Your history is kept.</div>
 <label>Band width
@@ -27,6 +42,9 @@
   </select>
 </label>
 <div class="hint">Your first 10 replies get the wider band of typical Claude replies, then yours; until 30 the wider band is used and marked "still learning".</div>
+<label><input type="checkbox" id="shareText"> Share text with RainDragon</label>
+<div class="hint">Sends the conversation's text when you send a message, so RainDragon's model can
+predict the reply's length; RainDragon keeps it to improve the model. Off keeps everything in this browser.</div>
 <label><input type="checkbox" id="showResult"> Show the actual time after each reply</label>
 <label><input type="checkbox" id="checkStatus"> Check Claude status</label>
 <div class="hint">Reads status.claude.com every 2 minutes to warn when claude.ai has an incident.</div>

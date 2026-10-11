@@ -1,8 +1,8 @@
 {
   "name": "raindragon-eta",
   "displayName": "RainDragon ETA",
-  "version": "0.2.0",
-  "description": "How long turns like this one usually take you, as a range from your own past turns, with a live clock in the status line. Flags major Claude incidents.",
+  "version": "0.3.0",
+  "description": "How long Claude's next turn will probably take: RainDragon's model predicts the reply's length from the conversation, timed by your own pace, with a live clock in the status line. Flags major Claude incidents.",
   "author": {
     "name": "RainDragon AI"
   },
@@ -19,7 +19,7 @@
     "enabled": {
       "type": "boolean",
       "title": "Enabled",
-      "description": "Turn the estimates off without uninstalling. Off means nothing is shown and nothing is recorded.",
+      "description": "Turn the estimates off without uninstalling. Off means nothing is shown, recorded or sent.",
       "default": true
     },
     "band": {
@@ -38,6 +38,12 @@
       "type": "boolean",
       "title": "Check Claude status",
       "description": "Read status.claude.com (cached 2 minutes) to warn when Claude Code or the API has an incident. Nothing is sent except the request itself.",
+      "default": true
+    },
+    "share_text": {
+      "type": "boolean",
+      "title": "Share text",
+      "description": "Send the conversation's text to RainDragon to predict how long Claude's reply will be. RainDragon keeps it to improve that model. Off keeps everything on this computer (the estimate then comes from your own past turns only).",
       "default": true
     }
   }

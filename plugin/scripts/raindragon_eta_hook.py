@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Claude Code hook entry point: raindragon-eta <event>.
 
-UserPromptSubmit  start the clock, show the band for this turn
-Stop              stop the clock, save the turn to local history
+UserPromptSubmit  start the clock, ask RainDragon's model how long Claude's
+                  reply will be (raindragon_eta/api.py), show the band
+Stop              stop the clock, save the turn to local history, queue the
+                  real reply length for RainDragon
 StopFailure       the turn failed: save it as failed so it never enters a band
 
 Also run by hand (or via the plugin's slash commands):
@@ -12,9 +14,12 @@ Also run by hand (or via the plugin's slash commands):
                     by the prompt hook, which never waits on the network
   eval              how often your band held on your own history (coverage)
                     and how wide it was, replayed in order
+  send-outcomes     send queued reply lengths to RainDragon; started detached
+                    by the Stop hook
 
 Kill switch: the plugin option "enabled" (in /config) or RAINDRAGON_ETA_OFF=1.
-Off means nothing is shown and nothing is recorded.
+Off means nothing is shown, recorded or sent. The option "share_text" off
+keeps everything local: no text is sent and the band is the local one.
 
 Contract with Claude Code:
   * stdout is either empty or ONE JSON object with "systemMessage". Plain
@@ -33,7 +38,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from raindragon_eta import __version__, fmt, predict, status, store  # noqa: E402
+from raindragon_eta import __version__, api, fmt, predict, status, store  # noqa: E402
 
 PREFIX = "RainDragon ETA: "
 #: Who makes it. Named, with a link, in doctor output, the extension options page
@@ -63,16 +68,27 @@ def _transcript_bytes(path) -> int:
         return 0
 
 
+def sharing(env: dict) -> bool:
+    return _flag(env, "SHARE_TEXT", True)
+
+
+#: Shown once, on the first prompt that sends text (CLAIMS.md, "Sharing").
+SHARING_NOTICE = ("sends this conversation's text to RainDragon to predict how long Claude's "
+                  "reply will be, and RainDragon keeps it to improve that model. "
+                  "To keep everything on this computer: /config, RainDragon ETA, Share text off.")
+
+
 def _settings(env: dict) -> dict:
     return {"enabled": enabled(env), "band": env.get("CLAUDE_PLUGIN_OPTION_BAND") or "50",
             "show_result": _flag(env, "SHOW_RESULT", False),
-            "check_status": _flag(env, "CHECK_STATUS", True)}
+            "check_status": _flag(env, "CHECK_STATUS", True),
+            "share_text": sharing(env)}
 
 
 OWN_COMMANDS = "/raindragon-eta:"   # our own slash commands are not turns worth timing
 
 
-def on_prompt(inp: dict, env: dict, now: float, fetch=None) -> str:
+def on_prompt(inp: dict, env: dict, now: float, fetch=None, post=None) -> str:
     d = store.data_dir(env)
     store.cleanup(d, now)
     if (inp.get("prompt") or "").lstrip().startswith(OWN_COMMANDS):
@@ -97,7 +113,12 @@ def on_prompt(inp: dict, env: dict, now: float, fetch=None) -> str:
         incident = status.current_incident(d, status.CLAUDE_CODE_COMPONENTS, now=now, **kw)
 
     history = store.read_history(d)
-    band = predict.predict(history, pc, tb, effort, coverage)
+    pred = None
+    if sharing(env):
+        conv = api.conversation(inp.get("transcript_path"), inp.get("prompt") or "")
+        pred = api.predict(env, d, conv, __version__, post=post)
+    band = predict.predicted_band(history, pred["output_tokens"], coverage) if pred else None
+    band = band or predict.predict(history, pc, tb, effort, coverage)
 
     store.write_pending(d, sid, {
         "prompt_id": inp.get("prompt_id"), "start": now,
@@ -107,9 +128,17 @@ def on_prompt(inp: dict, env: dict, now: float, fetch=None) -> str:
         "n": band.n if band else None, "learning": bool(band.learning) if band else None,
         "typical": bool(band.typical) if band else None,
         "learned": predict.learned_count(history),
+        "pred": pred["output_tokens"] if pred else None,
+        "pid": pred.get("prediction_id") if pred else None,
+        "mv": pred.get("model_version") if pred else None,
     })
 
     lines = []
+    if sharing(env) and store.read_json(d, "sharing_noticed.json") is None:
+        store.write_json(d, "sharing_noticed.json", {"at": int(now)})
+        lines.append(SHARING_NOTICE)
+    if pred:
+        lines.append("Claude's reply: %s." % fmt.tokens(pred["output_tokens"]))
     if band:
         lines.append(fmt.band_line(band.low, band.high, band.n, band.coverage, band.learning,
                                    band.typical, predict.learned_count(history),
@@ -122,7 +151,7 @@ def on_prompt(inp: dict, env: dict, now: float, fetch=None) -> str:
     return PREFIX + " ".join(lines) if lines else ""
 
 
-def on_stop(inp: dict, env: dict, now: float, ok: bool) -> str:
+def on_stop(inp: dict, env: dict, now: float, ok: bool, spawn=None) -> str:
     d = store.data_dir(env)
     p = store.pop_pending(d, inp.get("session_id") or "")
     if not p:
@@ -136,7 +165,14 @@ def on_stop(inp: dict, env: dict, now: float, ok: bool) -> str:
            "effort": p.get("effort"), "ok": ok, "incident": bool(p.get("incident"))}
     if not ok:
         rec["error"] = inp.get("error_type") or "unknown"
+    if p.get("pred"):
+        rec["pred"] = p["pred"]
     store.append_history(d, rec)
+    if p.get("pid"):
+        api.queue_outcome(d, {
+            "prediction_id": p["pid"], "install_id": api.install_id(d),
+            "output_tokens": api.first_reply_tokens(inp.get("transcript_path")) if ok else None,
+            "duration_ms": int(dur * 1000), "failed": not ok}, spawn=spawn)
     if ok and _flag(env, "SHOW_RESULT", False):
         took = "took " + fmt.duration(dur)
         if p.get("low") is not None:
@@ -146,6 +182,13 @@ def on_stop(inp: dict, env: dict, now: float, ok: bool) -> str:
                                                       fmt.duration(p["high"]))
         return PREFIX + took
     return ""
+
+
+def _count(folder: str) -> int:
+    try:
+        return len([n for n in os.listdir(folder) if n.endswith(".json")])
+    except OSError:
+        return 0
 
 
 def doctor(env: dict, now: float) -> dict:
@@ -178,6 +221,9 @@ def doctor(env: dict, now: float) -> dict:
         "phase": ("learning (typical band)" if good < predict.MIN_READY
                   else "learning (wide band)" if good < predict.CONFIDENT else "ready"),
         "turns_in_progress": pending,
+        "turns_with_prediction": sum(1 for r in h if r.get("pred")),
+        "api": api.base_url(env),
+        "outcomes_queued": _count(os.path.join(d, "outbox")),
         "status_cache_age_s": cache_age,
         "python": sys.version.split()[0],
         "made_by": MADE_BY,
@@ -202,7 +248,13 @@ def main(argv, stdin, stdout, env, now=None) -> int:
         if event == "eval":
             d = store.data_dir(env)
             cov = env.get("CLAUDE_PLUGIN_OPTION_BAND") or "50"
-            stdout.write(json.dumps(predict.evaluate(store.read_history(d), cov), indent=2) + "\n")
+            h = store.read_history(d)
+            out = predict.evaluate(h, cov)
+            out["predicted_vs_buckets"] = predict.evaluate_predicted(h, cov)
+            stdout.write(json.dumps(out, indent=2) + "\n")
+            return 0
+        if event == "send-outcomes":
+            api.flush_outcomes(env, store.data_dir(env))
             return 0
         if not enabled(env):
             return 0

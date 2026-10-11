@@ -5,6 +5,13 @@
  * While Claude replies: the elapsed time next to that band.
  * After: the reply's duration and word count are saved locally (no text).
  *
+ * With sharing on (default; the options page shows the notice first), each
+ * send also asks RainDragon's model how long Claude's reply will be: the
+ * conversation's text goes to RainDragon via background.js, which keeps it to
+ * improve the model. The answer shows as "reply ~900 tokens" and, once enough
+ * replies carry one, times the band by the user's own pace. Afterwards the
+ * reply's real length goes back. Nothing is sent while typing.
+ *
  * Page signals used (claude.ai test ids, checked 2026-10-08):
  *   [data-testid=chat-input]           the prompt editor
  *   [data-testid=chat-input-send]      the send button
@@ -29,7 +36,9 @@
   const TICK_MS = 250;
   const MAX_TURN_MS = 30 * 60 * 1000;   // longer than this is a tab left open
   const HISTORY_CAP = 1000;
-  const DEFAULTS = { enabled: true, band: "50", checkStatus: true, showResult: false };
+  const DEFAULTS = { enabled: true, band: "50", checkStatus: true, showResult: false,
+                     shareText: true };
+  const HEAD_CHARS = 48000, TAIL_CHARS = 16000;   // the model reads the head
 
   let settings = Object.assign({}, DEFAULTS);
   let history = [];
@@ -94,6 +103,46 @@
     return all.length ? all[all.length - 1] : null;
   }
 
+  function promptText() {
+    const el = $(SEL.input);
+    return el ? el.innerText.trim() : "";
+  }
+
+  // Training format: the conversation, oldest first, then the new prompt.
+  function conversationText(prompt) {
+    const el = $(SEL.transcript);
+    let t = ((el ? el.innerText : "") + " " + prompt).trim();
+    if (t.length > HEAD_CHARS + TAIL_CHARS) t = t.slice(0, HEAD_CHARS) + " " + t.slice(-TAIL_CHARS);
+    return t;
+  }
+
+  function askPrediction(p, prompt, cc, model) {
+    if (!settings.shareText) return;
+    const body = {
+      model: T.modelId(model), text: conversationText(prompt),
+      prompt_tokens: Math.max(1, Math.floor((cc + prompt.length) / 4)),
+      cached_tokens: Math.floor(cc / 4),
+      turn_idx: document.querySelectorAll(SEL.reply).length,
+    };
+    try {
+      chrome.runtime.sendMessage({ type: "predict", body }, (r) => {
+        if (chrome.runtime.lastError || !r || pending !== p) return;
+        p.pred = r.output_tokens;
+        p.pid = r.prediction_id;
+        const b = T.predictedBand(history, p.pred, settings.band);
+        if (b) p.band = b;
+      });
+    } catch (e) { /* extension reloaded */ }
+  }
+
+  // Characters Claude wrote, without the screen-reader heading.
+  function replyChars(el) {
+    if (!el) return 0;
+    let n = (el.innerText || "").length;
+    for (const sr of el.querySelectorAll(".sr-only")) n -= (sr.innerText || "").length;
+    return Math.max(0, n);
+  }
+
   function countWords(text) {
     const m = (text || "").match(/\S+/g);
     return m ? m.length : 0;
@@ -118,13 +167,16 @@
     if (pc === 0) return;
     const cc = contextChars(true);
     const model = modelLabel();
+    const prompt = promptText();
     pending = {
       start: now, before: lastReply(), el: null, sawStreaming: false, firstAt: null,
       pb: T.promptBucket(pc), cb: T.contextBucket(cc), model: T.modelKey(model),
       incident: !!incident, stopped: false,
       band: T.predict(history, pc, cc, model, settings.band),
+      pred: null, pid: null,
     };
     lastResult = null;
+    askPrediction(pending, prompt, cc, model);
   }
 
   function finish(ok) {
@@ -139,7 +191,15 @@
       rec.words = wordCount(p.el);
       if (p.firstAt) rec.first = Math.round((p.firstAt - p.start) / 10) / 100;
     }
+    if (p.pred) rec.pred = p.pred;
     save(rec);
+    if (p.pid) {
+      try {
+        chrome.runtime.sendMessage({ type: "outcome", body: {
+          prediction_id: p.pid, duration_ms: Math.round(dur * 1000), failed: !ok,
+          output_tokens: ok ? Math.max(1, Math.round(replyChars(p.el) / 4)) : null } });
+      } catch (e) { /* extension reloaded */ }
+    }
     if (ok && settings.showResult) {
       let text = "Took " + T.duration(dur) + ", " + T.wordsText(rec.words);
       if (p.band) text += " · " + T.bandLine(p.band);
@@ -203,6 +263,7 @@
     const warn = incident ? 'Claude status: "' + incident + '". Replies may be slower.' : "";
     if (pending) {
       const parts = [clock(Date.now() - pending.start)];
+      if (pending.pred) parts.push("reply " + T.tokensText(pending.pred));
       if (pending.band) parts.push(T.bandLine(pending.band));
       return { text: parts.join(" · "), warn };
     }

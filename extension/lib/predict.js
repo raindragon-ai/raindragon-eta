@@ -17,12 +17,17 @@
  *     model
  *     all replies
  *
+ * With sharing on, RainDragon's model also predicts the reply's length from
+ * the conversation (background.js asks the API); predictedBand() then scales
+ * the user's own seconds-per-predicted-token to that prediction, and
+ * evaluatePredicted() compares it with the bucket band on the same replies.
+ *
  * Plain script: loaded by the content script, and by node for tests.
  */
 (function (root) {
   "use strict";
 
-  const VERSION = "0.2.0";
+  const VERSION = "0.3.0";
   const MIN_READY = 10;
   const CONFIDENT = 30;
   const MIN_GROUP = 8;
@@ -68,6 +73,14 @@
   // models and effort levels apart; it is never sent anywhere.
   function modelKey(label) {
     return String(label || "").replace(/\s+/g, " ").trim().toLowerCase().slice(0, 60) || null;
+  }
+
+  // "Opus 5.5 Medium" -> "claude-opus-5-5": the API model id the length model
+  // was trained on. Unknown labels -> "claude".
+  function modelId(label) {
+    const m = String(label || "").toLowerCase().match(/\b(opus|sonnet|haiku)\b\s*(\d+(?:\.\d+)?)?/);
+    if (!m) return "claude";
+    return "claude-" + m[1] + (m[2] ? "-" + m[2].replace(".", "-") : "");
   }
 
   function quantile(sorted, q) {
@@ -124,6 +137,48 @@
       }
     }
     return null;
+  }
+
+  // Band from the predicted reply length and the user's own pace: each past
+  // reply's seconds per predicted token, scaled to this prediction. Null until
+  // MIN_READY past replies carry a prediction; wide until CONFIDENT.
+  function predictedBand(history, tokens, coverage) {
+    return predictedBandFrom(usable(history), tokens, coverage);
+  }
+
+  function predictedBandFrom(good, tokens, coverage) {
+    coverage = BANDS[coverage] ? coverage : "50";
+    const ratios = good.filter((r) => typeof r.pred === "number" && r.pred > 0)
+      .map((r) => r.dur / r.pred);
+    if (!(tokens > 0) || ratios.length < MIN_READY) return null;
+    const learning = ratios.length < CONFIDENT;
+    if (learning) coverage = "80";
+    const b = band(ratios, coverage);
+    return { dur: { low: tokens * b.low, high: tokens * b.high }, words: null,
+             n: ratios.length, group: "predicted length", coverage, learning };
+  }
+
+  // evaluate() for both bands on the same replies (those with a prediction).
+  function evaluatePredicted(history, coverage) {
+    const good = (history || []).filter(
+      (r) => r && r.ok && !r.incident && typeof r.dur === "number" && r.dur > 0);
+    const stats = { predicted: { scored: 0, hits: 0 }, buckets: { scored: 0, hits: 0 } };
+    good.forEach((r, i) => {
+      if (!(typeof r.pred === "number" && r.pred > 0)) return;
+      const before = good.slice(Math.max(0, i - RECENT), i);
+      const pb = predictedBandFrom(before, r.pred, coverage);
+      if (!pb) return;
+      const bb = predictBuckets(before, r.pb, r.cb, r.model, coverage);
+      for (const [name, b] of [["predicted", pb], ["buckets", bb]]) {
+        if (!b) continue;
+        stats[name].scored += 1;
+        if (b.dur.low <= r.dur && r.dur <= b.dur.high) stats[name].hits += 1;
+      }
+    });
+    for (const k of Object.keys(stats)) {
+      stats[k].coverage = stats[k].scored ? stats[k].hits / stats[k].scored : null;
+    }
+    return stats;
   }
 
   // Replay in order; each reply is scored only against the band built from the
@@ -187,6 +242,16 @@
     return t + (t === "1" ? " word" : " words");
   }
 
+  // Predicted reply length, 2 significant figures: "~940 tokens".
+  function tokensText(n) {
+    let v = Math.max(1, Math.floor(n));
+    if (v >= 100) {
+      const mag = Math.pow(10, String(v).length - 2);
+      v = Math.round(v / mag) * mag;
+    }
+    return "~" + v.toLocaleString("en-US") + " tokens";
+  }
+
   function span(lo, hi) {
     return lo === hi ? lo : lo + "–" + hi;
   }
@@ -237,9 +302,9 @@
 
   const api = {
     VERSION, MIN_READY, CONFIDENT, MIN_GROUP, RECENT, BANDS,
-    promptBucket, contextBucket, modelKey, quantile, usable, predict, evaluate, learnedCount,
-    priorBand, setPrior,
-    duration, words, wordsText, bandLine, incidentFromSummary, WEB_COMPONENTS,
+    promptBucket, contextBucket, modelKey, modelId, quantile, usable, predict, evaluate,
+    learnedCount, priorBand, setPrior, predictedBand, evaluatePredicted,
+    duration, words, wordsText, tokensText, bandLine, incidentFromSummary, WEB_COMPONENTS,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.RainDragonEta = api;

@@ -197,5 +197,58 @@ def evaluate(history: Iterable[dict], coverage: str = "50") -> dict:
     }
 
 
+def predicted_band(history: Iterable[dict], tokens: int, coverage: str = "50") -> Optional[Band]:
+    """Band from RainDragon's predicted reply length (api.py) and the user's own
+    pace: each past turn's seconds per predicted token, scaled to this
+    prediction. None until MIN_READY past turns carry a prediction; wide (8 in
+    10) until CONFIDENT, like the bucket band."""
+    return _predicted_band(usable(history), tokens, coverage)
+
+
+def _predicted_band(good: list, tokens: int, coverage: str) -> Optional[Band]:
+    ratios = sorted(r["dur"] / r["pred"] for r in good
+                    if isinstance(r.get("pred"), int) and r["pred"] > 0)
+    if not tokens or tokens <= 0 or len(ratios) < MIN_READY:
+        return None
+    learning = len(ratios) < CONFIDENT
+    if learning:
+        coverage = "80"
+    lo_q, hi_q = BANDS.get(coverage, BANDS["50"])
+    return Band(tokens * quantile(ratios, lo_q), tokens * quantile(ratios, hi_q), len(ratios),
+                "predicted length", coverage, learning)
+
+
+def evaluate_predicted(history: Iterable[dict], coverage: str = "50") -> dict:
+    """evaluate() for the predicted-length band, on the same turns: only turns
+    that had a prediction, each scored against both bands built from the turns
+    before it, so the two methods are compared like for like."""
+    good = [r for r in history
+            if r.get("ok") and not r.get("incident")
+            and isinstance(r.get("dur"), (int, float)) and r["dur"] > 0]
+    stats = {"predicted": [0, 0, []], "buckets": [0, 0, []]}
+    for i, r in enumerate(good):
+        if not isinstance(r.get("pred"), int) or r["pred"] <= 0:
+            continue
+        before = good[max(0, i - RECENT):i]
+        pb = _predicted_band(before, r["pred"], coverage)
+        if pb is None:
+            continue
+        bb = _predict_buckets(before, r.get("pb"), r.get("cb"), r.get("effort"), coverage)
+        for name, band in (("predicted", pb), ("buckets", bb)):
+            if band is None:
+                continue
+            s = stats[name]
+            s[0] += 1
+            s[1] += band.low <= r["dur"] <= band.high
+            if band.low > 0:
+                s[2].append(band.high / band.low)
+    out = {}
+    for name, (scored, hits, ratios) in stats.items():
+        ratios.sort()
+        out[name] = {"scored": scored, "coverage": (hits / scored) if scored else None,
+                     "median_ratio": quantile(ratios, 0.5) if ratios else None}
+    return out
+
+
 def learned_count(history: Iterable[dict]) -> int:
     return len(usable(history))

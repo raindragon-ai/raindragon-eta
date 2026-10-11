@@ -8,7 +8,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "plugin", "scripts"))
 
 import raindragon_eta_hook as hook  # noqa: E402
-from raindragon_eta import fmt, predict, status, store  # noqa: E402
+from raindragon_eta import api, fmt, predict, status, store  # noqa: E402
 
 
 PRIOR = {"groups": {
@@ -21,6 +21,15 @@ PRIOR = {"groups": {
 @pytest.fixture(autouse=True)
 def fixed_prior(monkeypatch):
     monkeypatch.setattr(predict, "_prior_cache", PRIOR)
+
+
+@pytest.fixture(autouse=True)
+def no_network(monkeypatch):
+    """No test reaches RainDragon's API; the API tests pass their own `post`."""
+    def offline(*a, **k):
+        raise OSError("offline in tests")
+    monkeypatch.setattr(api, "_post", offline)
+    monkeypatch.setattr(api, "_spawn_flush", lambda d: None)
 
 
 def rec(dur, ok=True, incident=False, pb="short", cb="small", effort="high"):
@@ -195,7 +204,7 @@ def run(event, payload, env, now):
 @pytest.fixture
 def env(tmp_path):
     return {"CLAUDE_PLUGIN_DATA": str(tmp_path), "CLAUDE_PLUGIN_OPTION_CHECK_STATUS": "false",
-            "HOME": str(tmp_path / "home")}
+            "CLAUDE_PLUGIN_OPTION_SHARE_TEXT": "false", "HOME": str(tmp_path / "home")}
 
 
 def prompt(i, sid="s1"):
@@ -485,3 +494,161 @@ def test_other_slash_commands_are_still_timed(env):
     run("prompt", dict(prompt(1), prompt="/review this file"), env, 0)
     run("stop", {"session_id": "s1", "prompt_id": "p1"}, env, 20)
     assert len(store.read_history(env["CLAUDE_PLUGIN_DATA"])) == 1
+
+
+# ---------- RainDragon API (api.py) ----------
+
+def _transcript(path, entries):
+    with open(path, "w") as f:
+        for e in entries:
+            f.write(json.dumps(e) + "\n")
+    return str(path)
+
+
+def _user(text):
+    return {"type": "user", "message": {"role": "user", "content": text}}
+
+
+def _asst(mid, text, out=50, model="claude-opus-5-5"):
+    return {"type": "assistant", "message": {"id": mid, "model": model, "role": "assistant",
+            "content": [{"type": "text", "text": text}], "usage": {"output_tokens": out}}}
+
+
+def _tool_result():
+    return {"type": "user", "message": {"role": "user", "content": [
+        {"type": "tool_result", "tool_use_id": "t1", "content": "ok"}]}}
+
+
+def test_conversation_text_is_built_like_training(tmp_path):
+    t = _transcript(tmp_path / "t.jsonl", [
+        _user("first question"), _asst("m1", "an answer"), _asst("m1", "more of it"),
+        _tool_result(), _asst("m2", "done", model="claude-sonnet-5"),
+        {"type": "assistant", "isSidechain": True, "message": {"id": "x", "model": "m",
+         "content": [{"type": "text", "text": "SIDE"}]}},
+    ])
+    c = api.conversation(t, "second question")
+    assert c["text"] == "first question an answer more of it  done second question"
+    assert c["model"] == "claude-sonnet-5" and c["turn_idx"] == 2
+    assert c["cached_tokens"] == 3 + 5 + 1 + 1          # chars/4 per message before the prompt
+    assert c["prompt_tokens"] == c["cached_tokens"] + len("second question") // 4
+    # the prompt already in the transcript is not counted twice
+    t2 = _transcript(tmp_path / "t2.jsonl", [_user("hi there"), _asst("m1", "yo"), _user("again")])
+    assert api.conversation(t2, "again")["text"] == "hi there yo again"
+
+
+def test_long_text_keeps_head_and_tail(tmp_path):
+    t = _transcript(tmp_path / "t.jsonl", [_user("H" * 100_000)])
+    c = api.conversation(t, "NEW PROMPT")
+    assert len(c["text"]) == api.HEAD_CHARS + 1 + api.TAIL_CHARS
+    assert c["text"].startswith("HHH") and c["text"].endswith("NEW PROMPT")
+
+
+def test_first_reply_tokens_is_the_reply_the_prediction_was_for(tmp_path):
+    t = _transcript(tmp_path / "t.jsonl", [
+        _user("old"), _asst("m0", "x", out=999),
+        _user("now"), _asst("m1", "a", out=40), _asst("m1", "b", out=120), _tool_result(),
+        _asst("m2", "c", out=700)])
+    assert api.first_reply_tokens(t) == 120
+    assert api.first_reply_tokens(str(tmp_path / "missing")) is None
+
+
+def test_install_id_is_stable(tmp_path):
+    a = api.install_id(str(tmp_path))
+    assert a == api.install_id(str(tmp_path)) and 8 <= len(a) <= 64
+
+
+@pytest.fixture
+def share_env(env):
+    return dict(env, CLAUDE_PLUGIN_OPTION_SHARE_TEXT="true")
+
+
+def _fake_post(calls, tokens=900):
+    def post(url, body, timeout):
+        calls.append((url, body, timeout))
+        if url.endswith("/v1/eta/predict"):
+            return {"prediction_id": "etp_" + "a" * 32, "output_tokens": tokens,
+                    "model_version": "tinylm-test"}
+        return {}
+    return post
+
+
+def test_prompt_asks_the_api_and_shows_the_reply_length(share_env, tmp_path):
+    calls = []
+    t = _transcript(tmp_path / "t.jsonl", [_user("hello"), _asst("m1", "hi")])
+    inp = dict(prompt(1), transcript_path=t)
+    msg = hook.on_prompt(inp, share_env, 1000, post=_fake_post(calls))
+    url, body, timeout = calls[0]
+    assert url == "https://inference.raindragon.ai/v1/eta/predict" and timeout <= 3
+    assert body["text"] == "hello hi fix the test" and body["model"] == "claude-opus-5-5"
+    assert body["client"] == "plugin" and body["client_version"] == hook.__version__
+    assert hook.SHARING_NOTICE in msg                     # first time only
+    assert "Claude's reply: ~900 tokens." in msg
+    msg2 = hook.on_prompt(dict(inp, prompt_id="p2"), share_env, 1001, post=_fake_post([]))
+    assert hook.SHARING_NOTICE not in msg2
+
+
+def test_api_url_can_point_at_staging(share_env):
+    calls = []
+    hook.on_prompt(prompt(1), dict(share_env, RAINDRAGON_ETA_API_URL="https://staging.example/"),
+                   1000, post=_fake_post(calls))
+    assert calls[0][0] == "https://staging.example/v1/eta/predict"
+
+
+def test_sharing_off_sends_nothing(env):
+    calls = []
+    msg = hook.on_prompt(prompt(1), env, 1000, post=_fake_post(calls))
+    assert calls == [] and hook.SHARING_NOTICE not in msg and "tokens" not in msg
+
+
+def test_api_failure_falls_back_to_the_local_band(share_env):
+    def down(url, body, timeout):
+        raise OSError("timeout")
+    msg = hook.on_prompt(prompt(1), share_env, 1000, post=down)
+    assert "8 in 10 typical Claude Code turns like this took 5s–25s" in msg
+    assert "tokens" not in msg.replace(hook.SHARING_NOTICE, "")
+
+
+def test_stop_records_the_prediction_and_queues_the_outcome(share_env, tmp_path):
+    t = _transcript(tmp_path / "t.jsonl", [_user("fix the test"), _asst("m1", "ok", out=321)])
+    hook.on_prompt(dict(prompt(1), transcript_path=t), share_env, 1000, post=_fake_post([]))
+    spawned = []
+    hook.on_stop({"session_id": "s1", "prompt_id": "p1", "transcript_path": t}, share_env, 1042,
+                 ok=True, spawn=spawned.append)
+    d = share_env["CLAUDE_PLUGIN_DATA"]
+    assert store.read_history(d)[-1]["pred"] == 900
+    queued = json.load(open(os.path.join(d, "outbox", "etp_" + "a" * 32 + ".json")))
+    assert queued == {"prediction_id": "etp_" + "a" * 32, "install_id": api.install_id(d),
+                      "output_tokens": 321, "duration_ms": 42000, "failed": False}
+    assert spawned == [d]
+    calls = []
+    assert api.flush_outcomes(share_env, d, post=_fake_post(calls)) == 1
+    assert calls[0][0].endswith("/v1/eta/outcome") and calls[0][1] == queued
+    assert not os.listdir(os.path.join(d, "outbox"))
+
+
+def test_outcomes_retry_then_expire(share_env, tmp_path):
+    d = share_env["CLAUDE_PLUGIN_DATA"]
+    api.queue_outcome(d, {"prediction_id": "etp_" + "b" * 32}, spawn=lambda d: None)
+
+    def down(url, body, timeout):
+        raise OSError("offline")
+    assert api.flush_outcomes(share_env, d, post=down) == 0
+    assert len(os.listdir(os.path.join(d, "outbox"))) == 1      # kept for later
+    api.flush_outcomes(share_env, d, post=down, now=10 ** 12)    # a day later: dropped
+    assert not os.listdir(os.path.join(d, "outbox"))
+
+
+def test_predicted_band_scales_the_users_pace():
+    hist = [dict(rec(d), pred=100) for d in range(1, 41)]     # 0.01..0.40 s per token
+    b = predict.predicted_band(hist, 1000, "50")
+    assert b.group == "predicted length" and b.n == 40 and not b.learning
+    assert (round(b.low, 1), round(b.high, 1)) == (107.5, 302.5)
+    assert predict.predicted_band(hist[:predict.MIN_READY - 1], 1000) is None
+    assert predict.predicted_band(hist[:20], 1000, "50").coverage == "80"   # still learning
+
+
+def test_eval_compares_predicted_and_bucket_bands():
+    hist = [dict(rec(10 + (i % 7)), pred=100) for i in range(60)]
+    out = predict.evaluate_predicted(hist, "50")
+    assert out["predicted"]["scored"] == out["buckets"]["scored"] == 60 - predict.MIN_READY
+    assert 0 <= out["predicted"]["coverage"] <= 1

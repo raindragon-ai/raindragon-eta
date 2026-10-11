@@ -31,3 +31,12 @@ def band_line(low: float, high: float, n: int, coverage: str, learning: bool = F
                 % (share, span, ready_at, learned))
     tail = "from %d turns, still learning" % n if learning else "from %d turns" % n
     return "%s of your similar turns took %s (%s)" % (share, span, tail)
+
+
+def tokens(n: int) -> str:
+    """A predicted reply length, rounded to 2 significant figures: "~900 tokens"."""
+    n = max(1, int(n))
+    if n >= 100:
+        mag = 10 ** (len(str(n)) - 2)
+        n = int(round(n / mag) * mag)
+    return "~{:,} tokens".format(n)

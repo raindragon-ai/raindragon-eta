@@ -21,6 +21,7 @@ export type Pending = {
   typical?: boolean | null // band from the built-in table, not the user's turns
   learned?: number         // good turns so far
   incident?: boolean
+  pred?: number | null     // predicted reply tokens from RainDragon's model
 }
 
 const MIN_READY = 10       // keep in step with raindragon_eta/predict.py
@@ -47,8 +48,19 @@ export function duration(seconds: number): string {
   return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, '0')}m`
 }
 
+// Same rounding as raindragon_eta/fmt.py tokens(), without the word "tokens".
+export function tokens(n: number): string {
+  let v = Math.max(1, Math.floor(n))
+  if (v >= 100) {
+    const mag = 10 ** (String(v).length - 2)
+    v = Math.round(v / mag) * mag
+  }
+  return `~${v.toLocaleString('en-US')} tok`
+}
+
 export function line(p: Pending, elapsedMs: number): string {
   const parts = [`⏱ ${clock(elapsedMs)}`]
+  if (p.pred) parts.push(`reply ${tokens(p.pred)}`)
   if (p.low != null && p.high != null) {
     const share = p.cov === '80' ? '8 in 10' : 'half'
     const lo = duration(p.low), hi = duration(p.high)

@@ -13,8 +13,8 @@ product, and an ad in it would cost trust. Links carry
 `utm_source=raindragon-eta&utm_medium=<doctor|extension|readme>` so visits
 can be counted on the site; the tool itself sends nothing.
 
-**One line:** How long turns like this one usually take you, as an honest
-range from your own history.
+**One line:** How long Claude's next reply will probably take: RainDragon's
+model predicts its length, timed by your own pace, as an honest range.
 
 ## Claims we can make
 
@@ -54,11 +54,32 @@ range from your own history.
    Failed turns, stopped turns and turns during an incident are never used.
    *Measured:* covered by tests; visible in `/raindragon-eta:doctor` counts.
 
-5. **Your work stays on your machine.** See PRIVACY.md.
+5. **It predicts the reply's length with RainDragon's model, and says it is
+   new.** The token count comes from TinyLM on RainDragon's API (version in
+   every answer); once 10 turns carry one, the range is the user's own seconds
+   per predicted token, scaled.
+   *Measured:* on 1,500 of the author's Claude Code replies (Opus 5.5 /
+   Sonnet 5, newer than its training data) the model ranked reply lengths at
+   Spearman 0.14–0.18, below prompt size (0.26) or the previous reply's length
+   (0.25), and 20% within 2x. So: do not claim it improves the estimate yet.
+   `/raindragon-eta:eval` and the extension options page report the
+   predicted-length range's coverage next to the size-based range's on the
+   same turns; that comparison is the claim once it holds.
+
+6. **Sharing is said plainly and can be turned off.** With "Share text" on
+   (default), the conversation's text goes to RainDragon and is kept to
+   improve the model, secret-looking strings removed (PRIVACY.md). The plugin
+   says so on the first prompt; the extension asks on its options page before
+   sending anything. Off: nothing goes to RainDragon.
+   *Measured:* covered by tests (no request with sharing off, notice once).
 
 ## Do not say
 
-* "accurate", "precise", "predicts", "knows exactly"
+* "accurate", "precise", "knows exactly"
+* "predicts" for the time: the model predicts the reply's *length*; the time
+  is a range from the user's own pace
+* "your data stays on your machine" or "nothing is sent" (true only with
+  sharing off; say that, with the condition)
 * any single-number estimate ("this will take 42s")
 * any accuracy percentage other than band coverage reported next to band width
 * "within 2x": a rule that ignores every input and multiplies elapsed time by
