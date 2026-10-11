@@ -74,7 +74,7 @@ def sharing(env: dict) -> bool:
 
 #: Shown once, on the first prompt that sends text (CLAIMS.md, "Sharing").
 SHARING_NOTICE = ("sends this conversation's text to RainDragon to predict how long Claude's "
-                  "reply will be, and RainDragon keeps it to improve that model. "
+                  "reply will be (the text is used for that and not kept). "
                   "To keep everything on this computer: /config, RainDragon ETA, Share text off.")
 
 

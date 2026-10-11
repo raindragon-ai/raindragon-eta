@@ -7,8 +7,8 @@
  *
  * With sharing on (default; the options page shows the notice first), each
  * send also asks RainDragon's model how long Claude's reply will be: the
- * conversation's text goes to RainDragon via background.js, which keeps it to
- * improve the model. The answer shows as "reply ~900 tokens" and, once enough
+ * conversation's text goes to RainDragon via background.js for the prediction
+ * (not kept). The answer shows as "reply ~900 tokens" and, once enough
  * replies carry one, times the band by the user's own pace. Afterwards the
  * reply's real length goes back. Nothing is sent while typing.
  *

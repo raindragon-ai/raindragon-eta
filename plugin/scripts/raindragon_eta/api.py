@@ -3,7 +3,8 @@
 On each prompt the conversation's text goes to RainDragon's ETA API
 (POST /v1/eta/predict), which answers how many tokens Claude's next reply will
 probably be (TinyLM; the answer names the model version, so a retrained model
-needs no plugin update). RainDragon keeps the text to improve the model.
+needs no plugin update). The text is used for the prediction and not kept;
+RainDragon keeps only the numbers.
 After the turn, the real length of that reply goes back (POST /v1/eta/outcome)
 from a detached process, so a Stop hook never waits on the network.
 

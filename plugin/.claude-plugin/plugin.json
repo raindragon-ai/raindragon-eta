@@ -43,7 +43,7 @@
     "share_text": {
       "type": "boolean",
       "title": "Share text",
-      "description": "Send the conversation's text to RainDragon to predict how long Claude's reply will be. RainDragon keeps it to improve that model. Off keeps everything on this computer (the estimate then comes from your own past turns only).",
+      "description": "Send the conversation's text to RainDragon to predict how long Claude's reply will be. The text is used for that prediction and not kept. Off keeps everything on this computer (the estimate then comes from your own past turns only).",
       "default": true
     }
   }

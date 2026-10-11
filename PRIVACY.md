@@ -5,7 +5,7 @@ asks RainDragon's model how long Claude's reply will be. That means it runs
 inside your sessions and sends their text to RainDragon, so here is exactly
 what it does with them.
 
-## What is sent to RainDragon, and kept
+## What is sent to RainDragon, and what is kept
 
 **Only with "Share text" on.** It is on by default. The Claude Code plugin says
 so on your first prompt; the extension shows a notice on its options page when
@@ -24,10 +24,11 @@ After the turn, to `/v1/eta/outcome`: the prediction's id, the reply's real
 length in tokens (extension: estimated from its characters) and the turn's
 duration.
 
-**RainDragon keeps all of this to improve the model.** Before the text is
-stored, strings that look like secrets (API keys, tokens, private keys,
-`password=...`) are replaced with `[REDACTED]`. The text is not tied to an
-account, email or name: only to the random install id. Tool calls and tool
+**The text is used for the prediction and not kept.** RainDragon keeps only
+the numbers, to check and improve the model: the model name, sizes, the
+prediction, the reply's real length and duration, the install id, client and
+version. None of it is tied to an account, email or name: only to the random
+install id. Tool calls and tool
 results (file contents Claude read, command output) are not part of the text
 in Claude Code; on claude.ai the text is what the conversation shows on screen.
 

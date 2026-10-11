@@ -9,8 +9,8 @@ slow reply doesn't leave you guessing.
 
 It works in **Claude Code** (as a plugin) and on **claude.ai** (as a Chrome
 extension). **It sends your conversation's text to RainDragon:** that is how
-the model predicts the reply's length, and RainDragon keeps the text to
-improve the model. You can turn sharing off at any time, and then everything
+the model predicts the reply's length. RainDragon uses the text only for that
+prediction and does not keep it. You can turn sharing off at any time, and then everything
 stays on your machine. See [Privacy](#privacy).
 
 <!-- TODO: screenshot or short GIF: the range appearing in Claude Code, then the live clock counting up -->
@@ -85,9 +85,9 @@ left out, so they don't skew your range.
 
 * **With sharing on (the default),** each time you send a prompt the
   conversation's text goes to RainDragon (inference.raindragon.ai), which
-  predicts the reply's length and **keeps the text to improve its model**.
-  Secret-looking strings such as API keys are removed before it is stored.
-  After the turn, the reply's real length and duration go back too. The
+  predicts the reply's length. **The text is used for that prediction and not
+  kept.** RainDragon keeps only numbers: the conversation's size, the
+  prediction, and after the turn the reply's real length and duration. The
   Claude Code plugin tells you this on your first prompt; the extension asks
   you on its options page before it sends anything.
 * **With sharing off,** nothing goes to RainDragon. ETA records only timings

@@ -25,8 +25,8 @@
   <h3>Before you start: what RainDragon ETA sends</h3>
   <p>When you send a message on claude.ai, RainDragon ETA sends the conversation's text
   to RainDragon (inference.raindragon.ai). RainDragon's model predicts how long Claude's
-  reply will be, and RainDragon <strong>keeps the text to improve that model</strong>.
-  Secret-looking strings such as API keys are removed before it is stored.
+  reply will be. <strong>The text is used for that prediction and not kept</strong>;
+  RainDragon keeps only numbers (sizes, the prediction, the reply's real length and time).
   Nothing is sent while you type.</p>
   <label><input type="checkbox" id="welcomeShare" checked> Share text with RainDragon</label>
   <div class="hint">Unticked, nothing leaves this browser except the status.claude.com check,
@@ -44,7 +44,7 @@
 <div class="hint">Your first 10 replies get the wider band of typical Claude replies, then yours; until 30 the wider band is used and marked "still learning".</div>
 <label><input type="checkbox" id="shareText"> Share text with RainDragon</label>
 <div class="hint">Sends the conversation's text when you send a message, so RainDragon's model can
-predict the reply's length; RainDragon keeps it to improve the model. Off keeps everything in this browser.</div>
+predict the reply's length; the text is not kept. Off keeps everything in this browser.</div>
 <label><input type="checkbox" id="showResult"> Show the actual time after each reply</label>
 <label><input type="checkbox" id="checkStatus"> Check Claude status</label>
 <div class="hint">Reads status.claude.com every 2 minutes to warn when claude.ai has an incident.</div>

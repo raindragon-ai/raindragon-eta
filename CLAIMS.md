@@ -67,8 +67,8 @@ model predicts its length, timed by your own pace, as an honest range.
    same turns; that comparison is the claim once it holds.
 
 6. **Sharing is said plainly and can be turned off.** With "Share text" on
-   (default), the conversation's text goes to RainDragon and is kept to
-   improve the model, secret-looking strings removed (PRIVACY.md). The plugin
+   (default), the conversation's text goes to RainDragon for the prediction
+   and is not kept; only numbers are (PRIVACY.md). The plugin
    says so on the first prompt; the extension asks on its options page before
    sending anything. Off: nothing goes to RainDragon.
    *Measured:* covered by tests (no request with sharing off, notice once).
