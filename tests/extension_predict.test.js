@@ -115,3 +115,11 @@ test("version matches the manifest", () => {
   const m = require("../extension/manifest.json");
   assert.equal(m.version, T.VERSION);
 });
+
+test("options page names the maker with a safe outbound link", () => {
+  const html = require("node:fs").readFileSync(require("node:path").join(__dirname, "../extension/options.html"), "utf8");
+  const a = html.match(/<a [^>]*href="([^"]+)"[^>]*>RainDragon AI<\/a>/);
+  assert.ok(a, "Made by RainDragon AI link");
+  assert.ok(a[1].startsWith("https://inference.raindragon.ai/?utm_source=raindragon-eta&utm_medium=extension"));
+  assert.match(a[0], /rel="noopener"/);
+});

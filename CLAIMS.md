@@ -6,6 +6,13 @@ measured. If it cannot be measured, it does not go in.
 
 **Name:** RainDragon ETA (plugin id `raindragon-eta`).
 
+**Made by:** RainDragon AI, with a link to inference.raindragon.ai, in three
+places only: `/raindragon-eta:doctor` output, the extension options page and
+the README. Never inside an estimate or a status warning: the estimate is the
+product, and an ad in it would cost trust. Links carry
+`utm_source=raindragon-eta&utm_medium=<doctor|extension|readme>` so visits
+can be counted on the site; the tool itself sends nothing.
+
 **One line:** How long turns like this one usually take you, as an honest
 range from your own history.
 

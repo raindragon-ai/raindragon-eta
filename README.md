@@ -3,6 +3,8 @@
 How long turns like this one usually take you, as a range from your own
 history, and a heads-up when Claude has a major incident.
 
+Made by [RainDragon AI](https://inference.raindragon.ai/?utm_source=raindragon-eta&utm_medium=readme).
+
 | Surface | Folder | Version |
 | :- | :- | :- |
 | Claude Code plugin | `plugin/` | 0.2.0 |
