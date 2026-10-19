@@ -1,7 +1,7 @@
 const T = self.RainDragonEta;
 const DEFAULTS = { enabled: true, band: "50", checkStatus: true, showResult: false };
 const $ = (id) => document.getElementById(id);
-const PROVS = Object.values(T.PROVIDERS);   // claude.ai, chatgpt.com: separate histories
+const PROVS = Object.values(T.PROVIDERS);   // claude.ai, chatgpt.com, gemini.google.com: separate histories
 let state = { settings: DEFAULTS, histories: {} };
 
 function flash(text) {

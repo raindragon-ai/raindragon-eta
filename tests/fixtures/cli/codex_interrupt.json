@@ -1,0 +1,10 @@
+{
+  "_synthetic": "Hand-written from learn.chatgpt.com/docs/hooks (Interrupt input). Not from a real session.",
+  "session_id": "cx-session-1",
+  "turn_id": "turn-1",
+  "transcript_path": null,
+  "cwd": "/tmp/synthetic-project",
+  "hook_event_name": "Interrupt",
+  "model": "gpt-5.5-codex",
+  "permission_mode": "default"
+}

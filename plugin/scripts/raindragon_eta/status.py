@@ -54,6 +54,39 @@ def incident_from_summary(summary: dict, components: Sequence[str]) -> Optional[
     return None
 
 
+# Google Workspace status dashboard, product "Gemini" (the Gemini app). The
+# Gemini CLI's own backends (Gemini API / Code Assist) have no machine-readable
+# status feed, so this is the nearest public signal: a warning here means
+# Google reports a Gemini OUTAGE, not that the CLI's backend is down.
+GOOGLE_INCIDENTS_URL = "https://www.google.com/appsstatus/dashboard/incidents.json"
+GEMINI_PRODUCT_ID = "npdyhgECDJ6tB66MxXyo"
+
+
+def incident_from_google(incidents, product_id: str = GEMINI_PRODUCT_ID) -> Optional[str]:
+    """Same MAJOR-only rule as Claude: an OPEN incident (no `end`) on the
+    product whose status_impact is SERVICE_OUTAGE or severity is high.
+    SERVICE_DISRUPTION / SERVICE_INFORMATION and low/medium are ignored."""
+    if not isinstance(incidents, list):
+        return None
+    for inc in incidents:
+        if not isinstance(inc, dict) or inc.get("end"):
+            continue
+        if not any(isinstance(p, dict) and p.get("id") == product_id
+                   for p in inc.get("affected_products") or []):
+            continue
+        if inc.get("status_impact") == "SERVICE_OUTAGE" or str(inc.get("severity")).lower() == "high":
+            return "Gemini: outage"
+    return None
+
+
+#: host -> (url, parser). Codex has none: status.openai.com's summary omits
+#: the Codex group, and the source that has it is undocumented.
+SOURCES = {
+    "claude": (SUMMARY_URL, lambda s: incident_from_summary(s, CLAUDE_CODE_COMPONENTS)),
+    "gemini": (GOOGLE_INCIDENTS_URL, incident_from_google),
+}
+
+
 def _fetch(url: str) -> dict:
     req = urllib.request.Request(url, headers={"User-Agent": "raindragon-eta"})
     with urllib.request.urlopen(req, timeout=TIMEOUT_SECONDS) as resp:
@@ -73,14 +106,21 @@ def _read_cache(path: str):
         return None, None
 
 
-def refresh(cache_dir: str, now: Optional[float] = None, fetch=None) -> bool:
+def refresh(cache_dir: str, now: Optional[float] = None, fetch=None, url: str = SUMMARY_URL) -> bool:
     """Fetch the status page and cache it. Blocking: run it from the
     background process (hook "refresh-status"), never from a prompt hook."""
     now = time.time() if now is None else now
     try:
-        summary = (fetch or _fetch)(SUMMARY_URL)
+        summary = (fetch or _fetch)(url)
     except Exception:
         return False
+    if isinstance(summary, list):
+        # Google's feed is every Workspace incident with full text (~350 KB):
+        # cache only the fields the rule reads, for the Gemini product only.
+        summary = [{k: i.get(k) for k in ("end", "severity", "status_impact", "affected_products")}
+                   for i in summary if isinstance(i, dict)
+                   and any(isinstance(p, dict) and p.get("id") == GEMINI_PRODUCT_ID
+                           for p in i.get("affected_products") or [])]
     path = os.path.join(cache_dir, "status_cache.json")
     try:
         tmp = path + ".tmp"
@@ -92,19 +132,20 @@ def refresh(cache_dir: str, now: Optional[float] = None, fetch=None) -> bool:
     return True
 
 
-def _spawn_refresh(cache_dir: str) -> None:
+def _spawn_refresh(cache_dir: str, host: str = "claude") -> None:
     """Start "refresh-status" detached, and do not wait for it."""
     import subprocess
     import sys
     hook = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                         "raindragon_eta_hook.py")
-    subprocess.Popen([sys.executable, hook, "refresh-status", "--data", cache_dir],
+    subprocess.Popen([sys.executable, hook, "refresh-status", "--data", cache_dir, "--host", host],
                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                      stderr=subprocess.DEVNULL, close_fds=True, start_new_session=True)
 
 
 def current_incident(cache_dir: str, components: Sequence[str] = CLAUDE_CODE_COMPONENTS,
-                     now: Optional[float] = None, fetch=None, spawn=None) -> Optional[str]:
+                     now: Optional[float] = None, fetch=None, spawn=None,
+                     host: str = "claude") -> Optional[str]:
     """The active major incident on our components, or None. NEVER waits on
     the network: a prompt hook calls this, and a slow DNS lookup once took it
     past Claude Code's 5 s hook timeout, which discarded the whole message.
@@ -119,7 +160,7 @@ def current_incident(cache_dir: str, components: Sequence[str] = CLAUDE_CODE_COM
     age = None if fetched_at is None else now - fetched_at
     if age is None or age >= CACHE_SECONDS:
         if fetch is not None:
-            if refresh(cache_dir, now, fetch):
+            if refresh(cache_dir, now, fetch, SOURCES.get(host, SOURCES["claude"])[0]):
                 fetched_at, summary = _read_cache(path)
                 age = 0.0
         else:
@@ -132,12 +173,17 @@ def current_incident(cache_dir: str, components: Sequence[str] = CLAUDE_CODE_COM
                 try:
                     open(stamp, "w").close()
                     os.utime(stamp, (now, now))
-                    (spawn or _spawn_refresh)(cache_dir)
+                    if spawn or host == "claude":
+                        (spawn or _spawn_refresh)(cache_dir)
+                    else:
+                        _spawn_refresh(cache_dir, host)
                 except Exception:
                     pass
     if summary is None or age is None or age >= STALE_OK_SECONDS:
         return None
     try:
+        if host != "claude":
+            return SOURCES[host][1](summary)
         return incident_from_summary(summary, components)
     except Exception:
         return None
