@@ -1,0 +1,12 @@
+{
+  "_synthetic": "Hand-written from learn.chatgpt.com/docs/hooks (Stop input). Not from a real session.",
+  "session_id": "cx-session-1",
+  "turn_id": "turn-1",
+  "transcript_path": null,
+  "cwd": "/tmp/synthetic-project",
+  "hook_event_name": "Stop",
+  "model": "gpt-5.5-codex",
+  "permission_mode": "default",
+  "stop_hook_active": false,
+  "last_assistant_message": "SYNTHETIC REPLY"
+}

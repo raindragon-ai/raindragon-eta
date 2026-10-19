@@ -1,0 +1,11 @@
+{
+  "_synthetic": "Hand-written from geminicli.com/docs/hooks/reference (AfterAgent input). Not from a real session.",
+  "session_id": "gm-session-1",
+  "transcript_path": "/tmp/synthetic-gemini/chats/session-synthetic.json",
+  "cwd": "/tmp/synthetic-project",
+  "hook_event_name": "AfterAgent",
+  "timestamp": "2026-10-19T10:00:20.000Z",
+  "prompt": "SYNTHETIC PROMPT: add a docstring",
+  "prompt_response": "SYNTHETIC REPLY",
+  "stop_hook_active": false
+}
