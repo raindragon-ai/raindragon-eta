@@ -21,7 +21,12 @@ async function currentIncident(providerId) {
     const t = setTimeout(() => ctl.abort(), TIMEOUT_MS);
     const resp = await fetch(prov.statusUrl, { signal: ctl.signal, credentials: "omit" });
     clearTimeout(t);
-    if (resp.ok) incident = T.incidentFromSummary(await resp.json(), prov.statusComponents);
+    if (resp.ok) {
+      const body = await resp.json();
+      incident = prov.statusFormat === "google"
+        ? T.incidentFromGoogle(body, prov.statusProduct, Date.now())
+        : T.incidentFromSummary(body, prov.statusComponents);
+    }
   } catch (e) {
     incident = null;
   }

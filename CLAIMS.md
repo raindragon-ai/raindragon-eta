@@ -60,6 +60,23 @@ range from your own history.
    and status.openai.com's summary lists no incidents (components only), so
    say "major outage of ChatGPT conversations", not "major incident".
 
+8. **On gemini.google.com it learns your Gemini pace separately.**
+   Gemini replies have their own history, never mixed with Claude's or
+   ChatGPT's, and start from zero, with the same first-run rule.
+   *Measured:* separate storage, the first-run rule and the
+   ok/failed/stopped/unknown rules are covered by tests on a synthetic page.
+   Not checked on a live signed-in gemini.google.com page: the page markers
+   are unverified, and if they are wrong it records nothing. Do not claim
+   any Gemini coverage number until the options page reports one from real
+   use.
+
+9. **It tells you when Google reports a major Gemini outage.**
+   It reads Google's status dashboard and warns only for an open Gemini
+   incident marked as an outage or high severity. *Measured:* rule covered
+   by tests and checked against the live feed's format; no open Gemini
+   incident has been seen in it yet, and there is no slowdown evidence for
+   Gemini incidents.
+
 ## Do not say
 
 * "accurate", "precise", "predicts", "knows exactly"
@@ -69,10 +86,13 @@ range from your own history.
   a constant maximises it, so it says nothing about quality
 * that the claude.ai extension is as good as the Claude Code plugin: it has
   less to go on (no effort level, a noisier page signal)
-* that the chatgpt.com range is as good as the claude.ai one, or anything
-  comparing Claude's and ChatGPT's speed: the histories are separate and
-  nothing compares them
-* that it works with the Codex CLI or Gemini: not built yet (docs/PROVIDERS.md)
+* that the chatgpt.com or gemini.google.com range is as good as the
+  claude.ai one, or anything comparing Claude's, ChatGPT's and Gemini's
+  speed: the histories are separate and nothing compares them
+* that it has been tested or checked on gemini.google.com: only on a
+  synthetic page so far
+* that the extension works with the Codex CLI or the Gemini CLI: those are
+  plugin hosts, see docs/PROVIDERS.md
 * anything about other users' speed: every range is from your own history,
   and cross-user error is not measured until the beta
 
