@@ -1,14 +1,15 @@
 # RainDragon ETA
 
 How long turns like this one usually take you, as a range from your own
-history, and a heads-up when Claude has a major incident.
+history, and a heads-up when Claude (or, on chatgpt.com, ChatGPT) has a major
+incident.
 
 Made by [RainDragon AI](https://inference.raindragon.ai/?utm_source=raindragon-eta&utm_medium=readme).
 
 | Surface | Folder | Version |
 | :- | :- | :- |
 | Claude Code plugin | `plugin/` | 0.2.0 |
-| Chrome extension for claude.ai | `extension/` | 0.2.0 |
+| Chrome extension for claude.ai and chatgpt.com | `extension/` | 0.2.0 |
 
 See [CLAIMS.md](CLAIMS.md) for what we say about it and what we do not, and
 [PRIVACY.md](PRIVACY.md) for what it stores.
@@ -37,7 +38,9 @@ On claude.ai, just above the message box, for both time and length:
 RainDragon ETA · Half of your similar replies took 20s–1m, 300–800 words (from 24)
 ```
 
-and a running clock while Claude replies. It is a **range**, never a single
+and a running clock while Claude replies. chatgpt.com shows the same pill
+above its message box, from a separate ChatGPT history that starts at zero
+(the first-run table below applies to it on its own). It is a **range**, never a single
 number: about half of your turns land inside the middle-half range.
 
 **First run.** It has nothing to go on until it has seen your turns:
@@ -79,11 +82,12 @@ Commands:
 1. Download `raindragon-eta-extension-<version>.zip` from the release and unzip it.
 2. Open `chrome://extensions`, turn on **Developer mode**, click **Load
    unpacked** and pick the unzipped `raindragon-eta-extension` folder.
-3. Open claude.ai and start typing.
+3. Open claude.ai or chatgpt.com and start typing.
 
 Options (Extensions → RainDragon ETA → Details → Extension options): **On**, band
-width, show the actual time and length after each reply, check Claude status,
-how often the range held, **Copy diagnostics**, **Clear my history**.
+width, show the actual time and length after each reply, check Claude and
+ChatGPT status, how often the range held (per site), **Copy diagnostics**,
+**Clear my history** (both sites).
 
 ### Verify a download
 
@@ -118,7 +122,12 @@ Plugin: a `UserPromptSubmit` hook starts the clock and shows the range as a
 user-only message (nothing is added to Claude's context); `Stop` saves the
 duration; `StopFailure` saves it as failed. Extension: reads claude.ai's own
 page markers (`assistant-message` with `data-is-streaming`) to see when a
-reply starts and ends; it never reads or stores the text.
+reply starts and ends; it never stores the text. On chatgpt.com it reads a
+copy of the page's own conversation stream to see when a reply starts and
+ends, how many words it has and which model answered; the text is counted
+and dropped, never stored. Each site keeps its own history. See
+[docs/PROVIDERS.md](docs/PROVIDERS.md) for how each surface measures a turn,
+and the plan for the Codex CLI and Gemini.
 
 "Similar" narrows by prompt size, conversation size and effort or model, and
 falls back to broader groups until one has at least 8 turns. Only your most
@@ -128,6 +137,6 @@ recent 300 good turns are used.
 
 ```bash
 python3 -m pytest -q tests   # plugin
-node --test tests/           # extension
+node --test tests/           # extension (chatgpt.com: synthetic SSE fixtures in tests/fixtures/chatgpt/)
 python3 release.py           # dist/*.zip + dist/SHA256SUMS
 ```

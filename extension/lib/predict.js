@@ -1,4 +1,4 @@
-/* RainDragon ETA for claude.ai: duration and length bands from the user's own past replies.
+/* RainDragon ETA for claude.ai and chatgpt.com: duration and length bands from the user's own past replies.
  *
  * Same rules as the Claude Code plugin (plugin/scripts/raindragon_eta/predict.py):
  * a BAND (middle half by default) of similar past replies, never a single
@@ -177,10 +177,29 @@
   // ---- status.claude.com ----
 
   const WEB_COMPONENTS = ["claude.ai", "claude api"];
+
+  // Each chat site keeps its own history (its own storage key) and its own
+  // status page: a ChatGPT reply never shapes a Claude band, or the reverse.
+  // Within one site, "similar" still narrows by model first (see predict()).
+  // status.openai.com is an incident.io page; its Statuspage-compatible
+  // summary.json lists ChatGPT's chat as the "Conversations" component.
+  const PROVIDERS = {
+    claude: {
+      id: "claude", label: "Claude", site: "claude.ai", historyKey: "history",
+      statusUrl: "https://status.claude.com/api/v2/summary.json",
+      statusComponents: WEB_COMPONENTS,
+    },
+    chatgpt: {
+      id: "chatgpt", label: "ChatGPT", site: "chatgpt.com", historyKey: "history_chatgpt",
+      statusUrl: "https://status.openai.com/api/v2/summary.json",
+      statusComponents: ["conversations"],
+    },
+  };
   // Only MAJOR problems count (same rule and evidence as the plugin's
   // status.py): major incidents slowed turns 1.81x, minor/degraded did not.
   const MAJOR_IMPACTS = ["major", "critical"];
-  const MAJOR_COMPONENT_STATUS = ["major_outage"];
+  // "full_outage" is incident.io's name for it (status.openai.com).
+  const MAJOR_COMPONENT_STATUS = ["major_outage", "full_outage"];
 
   function relevant(name, components) {
     const n = String(name || "").toLowerCase();
@@ -207,7 +226,7 @@
   const api = {
     VERSION, MIN_READY, CONFIDENT, MIN_GROUP, RECENT, BANDS,
     promptBucket, contextBucket, modelKey, quantile, usable, predict, evaluate, learnedCount,
-    duration, words, wordsText, bandLine, incidentFromSummary, WEB_COMPONENTS,
+    duration, words, wordsText, bandLine, incidentFromSummary, WEB_COMPONENTS, PROVIDERS,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.RainDragonEta = api;

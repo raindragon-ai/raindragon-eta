@@ -123,3 +123,29 @@ test("options page names the maker with a safe outbound link", () => {
   assert.ok(a[1].startsWith("https://inference.raindragon.ai/?utm_source=raindragon-eta&utm_medium=extension"));
   assert.match(a[0], /rel="noopener"/);
 });
+
+test("each site has its own history key and status page", () => {
+  const P = T.PROVIDERS;
+  assert.equal(P.claude.historyKey, "history");          // unchanged: existing claude.ai history keeps working
+  assert.notEqual(P.chatgpt.historyKey, P.claude.historyKey);
+  assert.equal(P.chatgpt.statusUrl, "https://status.openai.com/api/v2/summary.json");
+  const m = require("../extension/manifest.json");
+  for (const p of Object.values(P)) assert.ok(m.host_permissions.includes(new URL(p.statusUrl).origin + "/*"), p.id);
+});
+
+test("ChatGPT heads-up: only a major outage of Conversations", () => {
+  const C = T.PROVIDERS.chatgpt.statusComponents;
+  // status.openai.com's summary.json has components only (no incidents key)
+  const ok = { components: [{ name: "Conversations", status: "operational" }] };
+  assert.equal(T.incidentFromSummary(ok, C), null);
+  const degraded = { components: [{ name: "Conversations", status: "degraded_performance" }] };
+  assert.equal(T.incidentFromSummary(degraded, C), null);
+  const apiDown = { components: [{ name: "Chat Completions", status: "major_outage" }] };
+  assert.equal(T.incidentFromSummary(apiDown, C), null);
+  const down = { components: [{ name: "Conversations", status: "major_outage" }] };
+  assert.equal(T.incidentFromSummary(down, C), "Conversations: major outage");
+  const full = { components: [{ name: "Conversations", status: "full_outage" }] };
+  assert.equal(T.incidentFromSummary(full, C), "Conversations: full outage");
+  // and claude.ai never reacts to an OpenAI page
+  assert.equal(T.incidentFromSummary(down), null);
+});

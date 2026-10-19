@@ -45,6 +45,21 @@ range from your own history.
 
 5. **Your work stays on your machine.** See PRIVACY.md.
 
+6. **On chatgpt.com it learns your ChatGPT pace separately.**
+   ChatGPT replies have their own history, never mixed with Claude's, and
+   start from zero: "learning your pace" until 10 replies, the wide range
+   until 30. *Measured:* separate storage and the first-run rule are covered
+   by tests (synthetic stream fixtures). Not yet checked on a live
+   signed-in chatgpt.com page; coverage on ChatGPT is not measured. Do not
+   claim any ChatGPT coverage number until the options page reports one.
+
+7. **It tells you when ChatGPT's chat is in a major outage.**
+   It reads status.openai.com and warns only when the "Conversations"
+   component is in a major/full outage. *Measured:* rule covered by tests.
+   Unlike claim 3, there is no slowdown evidence for OpenAI incidents yet,
+   and status.openai.com's summary lists no incidents (components only), so
+   say "major outage of ChatGPT conversations", not "major incident".
+
 ## Do not say
 
 * "accurate", "precise", "predicts", "knows exactly"
@@ -54,6 +69,10 @@ range from your own history.
   a constant maximises it, so it says nothing about quality
 * that the claude.ai extension is as good as the Claude Code plugin: it has
   less to go on (no effort level, a noisier page signal)
+* that the chatgpt.com range is as good as the claude.ai one, or anything
+  comparing Claude's and ChatGPT's speed: the histories are separate and
+  nothing compares them
+* that it works with the Codex CLI or Gemini: not built yet (docs/PROVIDERS.md)
 * anything about other users' speed: every range is from your own history,
   and cross-user error is not measured until the beta
 
