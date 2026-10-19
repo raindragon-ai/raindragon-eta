@@ -130,7 +130,9 @@ test("each site has its own history key and status page", () => {
   assert.notEqual(P.chatgpt.historyKey, P.claude.historyKey);
   assert.equal(P.chatgpt.statusUrl, "https://status.openai.com/api/v2/summary.json");
   const m = require("../extension/manifest.json");
-  for (const p of Object.values(P)) assert.ok(m.host_permissions.includes(new URL(p.statusUrl).origin + "/*"), p.id);
+  // every status URL is covered by a host permission (Gemini's is a path on www.google.com)
+  for (const p of Object.values(P))
+    assert.ok(m.host_permissions.some((h) => p.statusUrl.startsWith(h.replace(/\*$/, ""))), p.id);
 });
 
 test("ChatGPT heads-up: only a major outage of Conversations", () => {

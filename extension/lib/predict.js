@@ -1,4 +1,4 @@
-/* RainDragon ETA for claude.ai and chatgpt.com: duration and length bands from the user's own past replies.
+/* RainDragon ETA for claude.ai, chatgpt.com and gemini.google.com: duration and length bands from the user's own past replies.
  *
  * Same rules as the Claude Code plugin (plugin/scripts/raindragon_eta/predict.py):
  * a BAND (middle half by default) of similar past replies, never a single
@@ -194,6 +194,13 @@
       statusUrl: "https://status.openai.com/api/v2/summary.json",
       statusComponents: ["conversations"],
     },
+    // Google's Workspace status dashboard lists the Gemini app as product
+    // npdyhgECDJ6tB66MxXyo; see incidentFromGoogle().
+    gemini: {
+      id: "gemini", label: "Gemini", site: "gemini.google.com", historyKey: "history_gemini",
+      statusUrl: "https://www.google.com/appsstatus/dashboard/incidents.json",
+      statusFormat: "google", statusProduct: "npdyhgECDJ6tB66MxXyo",
+    },
   };
   // Only MAJOR problems count (same rule and evidence as the plugin's
   // status.py): major incidents slowed turns 1.81x, minor/degraded did not.
@@ -223,10 +230,45 @@
     return null;
   }
 
+  // ---- www.google.com/appsstatus (Gemini) ----
+  //
+  // incidents.json is a flat list of incidents, past and present (checked
+  // 2026-10-19: 39 entries, 4 for Gemini, all ended). Fields used: begin,
+  // end, severity (low/medium/high), status_impact (SERVICE_INFORMATION /
+  // SERVICE_DISRUPTION / SERVICE_OUTAGE), affected_products[].id, service_key.
+  // MAJOR-only, as for Claude: an active incident on this product with
+  // status_impact SERVICE_OUTAGE or severity high. "Active" = no end yet, or
+  // an end in the future. No open incident has been observed in the feed, so
+  // how `end` looks while open (null, missing, empty) is handled all three
+  // ways. Anything unparseable means "no known incident".
+  function incidentFromGoogle(list, productId, nowMs) {
+    if (!Array.isArray(list) || !productId) return null;
+    const now = typeof nowMs === "number" ? nowMs : Date.now();
+    for (const inc of list) {
+      if (!inc || typeof inc !== "object") continue;
+      const ids = (Array.isArray(inc.affected_products) ? inc.affected_products : [])
+        .map((p) => p && p.id).concat([inc.service_key]);
+      if (ids.indexOf(productId) < 0) continue;
+      if (inc.end) {
+        const e = Date.parse(inc.end);
+        if (!(e > now)) continue;          // ended, or a date we cannot read
+      }
+      if (inc.begin) {
+        const b = Date.parse(inc.begin);
+        if (!(b <= now)) continue;         // not started, or unreadable
+      }
+      const impact = String(inc.status_impact || "").toUpperCase();
+      const sev = String(inc.severity || "").toLowerCase();
+      if (impact === "SERVICE_OUTAGE") return "service outage";
+      if (sev === "high") return "high-severity incident";
+    }
+    return null;
+  }
+
   const api = {
     VERSION, MIN_READY, CONFIDENT, MIN_GROUP, RECENT, BANDS,
     promptBucket, contextBucket, modelKey, quantile, usable, predict, evaluate, learnedCount,
-    duration, words, wordsText, bandLine, incidentFromSummary, WEB_COMPONENTS, PROVIDERS,
+    duration, words, wordsText, bandLine, incidentFromSummary, incidentFromGoogle, WEB_COMPONENTS, PROVIDERS,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.RainDragonEta = api;

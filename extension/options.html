@@ -28,14 +28,14 @@
 </label>
 <div class="hint">Until 30 replies the wider band is used and marked "still learning".</div>
 <label><input type="checkbox" id="showResult"> Show the actual time after each reply</label>
-<label><input type="checkbox" id="checkStatus"> Check Claude and ChatGPT status</label>
-<div class="hint">Reads status.claude.com (on claude.ai) and status.openai.com (on chatgpt.com) every 2 minutes to warn during a major incident.</div>
+<label><input type="checkbox" id="checkStatus"> Check Claude, ChatGPT and Gemini status</label>
+<div class="hint">Reads status.claude.com (on claude.ai) and status.openai.com (on chatgpt.com) and Google's status dashboard, www.google.com/appsstatus (on gemini.google.com), every 2 minutes to warn during a major incident.</div>
 <div class="box">
   <div id="count"></div>
   <div id="eval"></div>
 </div>
 <button id="copy">Copy diagnostics</button><button id="clear">Clear my history</button><span id="saved"></span>
-<div class="hint" style="margin-left:0">Clear removes both the claude.ai and the chatgpt.com history. Diagnostics hold the version, settings and counts only: no prompts, replies or chat names.</div>
+<div class="hint" style="margin-left:0">Clear removes the claude.ai, chatgpt.com and gemini.google.com histories. Diagnostics hold the version, settings and counts only: no prompts, replies or chat names.</div>
 <p class="maker">Made by <a href="https://inference.raindragon.ai/?utm_source=raindragon-eta&utm_medium=extension" target="_blank" rel="noopener">RainDragon AI</a></p>
 <script src="lib/predict.js"></script>
 <script src="options.js"></script>

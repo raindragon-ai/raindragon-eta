@@ -106,27 +106,46 @@ Plan: reuse `raindragon_eta_hook.py` with a `--host codex` flag: data dir
 group), install via `~/.codex/hooks.json`. Separate history from Claude
 Code. Tests with synthetic hook payloads and a synthetic rollout file.
 
-## Gemini: design (not built in this PR)
+## Gemini
 
-### (a') gemini.google.com in the extension
+### (a') gemini.google.com in the extension: built
 
-* **Stream:** `POST /_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate`
+Files: `extension/lib/gemini_dom.js` (selector table + turn rules, pure),
+`extension/gemini.js` (content script), `lib/predict.js:PROVIDERS.gemini`.
+Tests: `tests/gemini_dom.test.js` against a synthetic DOM
+(`tests/fixtures/gemini/`, a dependency-free mini DOM).
+
+* **Stream not used.** `POST /_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate`
   answers with `)]}'` then length-prefixed JSON frames (lengths in UTF-16
   units), each carrying the full reply so far deep in nested arrays
   (github.com/HanaokaYuzu/Gemini-API, `utils/parsing.py`). Undocumented and
   positional, so a tap would break silently on any layout change.
-* **Recommended: DOM, like claude.ai.** Turn = `.conversation-container`
-  with `<user-query>` and `<model-response>`; reply text in
-  `message-content` / `.response-content`, excluding
-  `details.gemini-thought` (thinking) and hidden "You said" text. Start:
-  Enter in `rich-textarea .ql-editor` or click on
-  `button[aria-label="Send message"]` / `[data-test-id=send-button]`. End:
-  the stop control disappears and the new `<model-response>` stops changing
-  for ~1 s. **The stop-button selector is not confirmed by any public
-  source** and must be checked in DevTools first. Model: the picker label
-  `.input-area-switch [data-test-id=primary-text]` (+ thinking level).
-  Pill above `rich-textarea`. Own history key `history_gemini`, model as
-  first "similar" level, first run from zero.
+* **DOM, like claude.ai.** All selectors are in one table, `SEL` in
+  `lib/gemini_dom.js`, each with its source. Turn = `<model-response>` (reply
+  text in `message-content` / `.response-content`, excluding
+  `details.gemini-thought` thinking and visually-hidden text). Start: Enter
+  in `rich-textarea .ql-editor` or a click on `button[aria-label="Send
+  message"]` / `[data-test-id=send-button]`. Streaming: the stop control
+  (`button[aria-label="Stop response"]` / `[data-test-id=stop-button]`) is on
+  screen, or the new reply's text is `aria-busy`. End: streaming stops and the
+  new reply's word count has not changed for 1 s; the duration ends when
+  streaming stopped (or at the last change, if later).
+* **Outcomes.** ok = streaming seen, ended, new reply has words, no error
+  marker; failed = error marker inside the new reply; stopped = a click on the
+  stop control (dropped); unknown = no streaming marker ever seen (reply
+  settled 5 s without one), no new reply in 2 min, an empty reply, or 30 min
+  (dropped). Only ok and failed are saved.
+* **Unverified selectors.** None has been checked on a live signed-in page.
+  **The stop control and the error marker have no public source at all**
+  (best guesses). Fail-safe direction: a wrong stop selector makes every turn
+  "unknown" (nothing saved); a wrong error selector makes a failed turn
+  "unknown" (an empty reply), never "ok"; a wrong input selector hides the
+  pill. First thing to do with a signed-in browser: check `SEL` in DevTools.
+* **Model.** The picker label `.input-area-switch [data-test-id=primary-text]`
+  is the first "similar" level, read at send time and while typing. If it is
+  not on the page every reply shares one bucket (`model: null`).
+* **History** `history_gemini`, first run from zero. Pill above
+  `input-area-v2` (else `.input-area`, else `rich-textarea`).
 * Sources: gist.github.com/maciejkos/98afba3ff3443f2066e67f47bbe2ad0e,
   github.com/LayneIns/Ask-Gemini-Extension,
   github.com/yarden-carmi/Gemini-Pro-Auto-Selector.
@@ -146,16 +165,26 @@ failure event: failed/stopped turns would need the session JSON
 only). Older CLIs (e.g. 0.22) need `tools.enableHooks`. Same plan as
 Codex: `--host gemini` on the existing hook script, separate history.
 
-### (c') Google status
+### (c') Google status: built (extension)
 
 `https://www.google.com/appsstatus/dashboard/incidents.json` (Workspace
-dashboard) lists Gemini app incidents: product "Gemini", id
-`npdyhgECDJ6tB66MxXyo`; fields `begin`, `end` (null while open, unverified),
+dashboard) is a flat JSON list of incidents, past and present (checked
+2026-10-19: 39 entries, ~340 KB, 4 for Gemini, all ended, all low/medium).
+The Gemini app is product "Gemini", id `npdyhgECDJ6tB66MxXyo`
+(`affected_products[].id` and `service_key`). Fields used: `begin`, `end`,
 `severity` (low/medium/high), `status_impact`
-(SERVICE_INFORMATION/DISRUPTION/OUTAGE), `affected_products[]`. MAJOR-only
-mapping: open incident with `status_impact == SERVICE_OUTAGE` or
-`severity == high` on that product id. Gemini API on Vertex:
-`status.cloud.google.com/incidents.json`, product `Z0FZJAMvEB4j3NbCJs6B`.
-No machine-readable source for AI Studio / the consumer Gemini API (the
-CLI's default backend). Note `status.gemini.com` is a crypto exchange, not
-Google. Host permission needed: `https://www.google.com/appsstatus/*`.
+(SERVICE_INFORMATION/DISRUPTION/OUTAGE). MAJOR-only mapping
+(`incidentFromGoogle` in `lib/predict.js`): an incident on that product that
+has begun and has no `end` (null, missing or empty: no open incident has
+been observed, so all three are accepted) or an `end` in the future, with
+`status_impact == SERVICE_OUTAGE` or `severity == high`. Checked against the
+live feed: the 2026-09-11 Gemini incident (low, SERVICE_INFORMATION) is not
+flagged at any time; the one high/SERVICE_OUTAGE incident in the feed (Google
+Keep) is flagged mid-incident under its own id and not after its end. No
+slowdown evidence for Gemini incidents. Host permission:
+`https://www.google.com/appsstatus/*`.
+
+Gemini API on Vertex: `status.cloud.google.com/incidents.json`, product
+`Z0FZJAMvEB4j3NbCJs6B` (not used). No machine-readable source for AI Studio /
+the consumer Gemini API (the CLI's default backend). Note `status.gemini.com`
+is a crypto exchange, not Google.
