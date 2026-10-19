@@ -73,7 +73,28 @@ incidents, impact field unverified) and the native
 is undocumented. No slowdown evidence exists for OpenAI incidents yet
 (CLAIMS.md claim 7).
 
-## (b) OpenAI Codex CLI: design (clean hook exists; not built in this PR)
+## (b) OpenAI Codex CLI: built (`--host codex`; install in docs/INSTALL_CLI.md)
+
+What shipped differs from the plan below in four places, all found by
+reading the Codex source (openai/codex at fbb2f9d, 2026-10-19):
+
+* **`task_complete` is written after `Stop` runs, and `Stop` does not run
+  at all when a turn errors** (`session/turn.rs` returns before
+  `run_turn_stop_hooks` on error; `tasks/mod.rs` emits `TurnComplete` after).
+  So `Stop` cannot read its own turn's outcome. Instead, the next
+  `UserPromptSubmit` in the session settles a turn whose `Stop` never came:
+  `task_complete` with `error` -> saved failed with Codex's `duration_ms` and
+  the `codex_error_info` variant name; `turn_aborted` or nothing -> dropped.
+  Normal turns use the hook's own clock, `Stop` minus `UserPromptSubmit`.
+* **Similar key is the payload's `model` only.** Effort lives in the
+  rollout's `turn_context`, which for the new turn is not written yet at
+  `UserPromptSubmit`; reading the previous one would guess.
+* **No status source.** The Codex group is only in the undocumented
+  `/proxy/status.openai.com`, so Codex incident warnings are skipped.
+* `Interrupt` drops the turn (timeout 3 s, the documented maximum).
+
+Remaining design notes, kept for reference:
+
 
 Codex CLI (0.163.0) has Claude-Code-style hooks, on by default
 (learn.chatgpt.com/docs/hooks; developers.openai.com/codex now redirects
@@ -150,7 +171,25 @@ Tests: `tests/gemini_dom.test.js` against a synthetic DOM
   github.com/LayneIns/Ask-Gemini-Extension,
   github.com/yarden-carmi/Gemini-Pro-Auto-Selector.
 
-### (b') Gemini CLI
+### (b') Gemini CLI: built (`--host gemini`; install in docs/INSTALL_CLI.md)
+
+* **`systemMessage` stays out of model context, verified in source**
+  (google-gemini/gemini-cli at 3be3d44, 0.66.0-nightly): for `BeforeAgent`
+  it only reaches `coreEvents.emitHookSystemMessage` -> an info line in the
+  UI (`AppContainer.tsx`); the model request changes only for
+  `hookSpecificOutput.additionalContext` (wrapped in `<hook_context>`),
+  which we never return. On v0.22.0 hooks need `tools.enableHooks` and the
+  message only reaches the debug log (not shown).
+* `AfterAgent` fires only when the turn finishes with no pending tool calls;
+  an error or cancel fires nothing, so such a turn is dropped at the next
+  `BeforeAgent`. `prompt_response` empty or `[no response text]` -> failed.
+* No model in the payload, so there is no model level; buckets are prompt
+  length and session-file size.
+* Status: (c') below, Gemini product, MAJOR-only, cached trimmed to the
+  Gemini incidents' status fields.
+
+Design notes as written before building:
+
 
 Clean hooks exist (geminicli.com/docs/hooks/, /hooks/reference/): `"hooks"`
 in `~/.gemini/settings.json` or an extension's `hooks/hooks.json`.
@@ -165,7 +204,7 @@ failure event: failed/stopped turns would need the session JSON
 only). Older CLIs (e.g. 0.22) need `tools.enableHooks`. Same plan as
 Codex: `--host gemini` on the existing hook script, separate history.
 
-### (c') Google status: built (extension)
+### (c') Google status: built (extension; the Gemini CLI hook uses the same feed)
 
 `https://www.google.com/appsstatus/dashboard/incidents.json` (Workspace
 dashboard) is a flat JSON list of incidents, past and present (checked

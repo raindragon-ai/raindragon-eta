@@ -10,6 +10,7 @@ Made by [RainDragon AI](https://inference.raindragon.ai/?utm_source=raindragon-e
 | :- | :- | :- |
 | Claude Code plugin | `plugin/` | 0.2.0 |
 | Chrome extension for claude.ai, chatgpt.com and gemini.google.com | `extension/` | 0.2.0 |
+| Codex CLI and Gemini CLI hooks (same script as the plugin, untested live) | `plugin/scripts/` | 0.2.0 |
 
 See [CLAIMS.md](CLAIMS.md) for what we say about it and what we do not, and
 [PRIVACY.md](PRIVACY.md) for what it stores.
@@ -92,6 +93,22 @@ width, show the actual time and length after each reply, check Claude,
 ChatGPT and Gemini status, how often the range held (per site), **Copy
 diagnostics**, **Clear my history** (all sites).
 
+### Codex CLI and Gemini CLI
+
+The plugin's hook script also runs as a hook in OpenAI's Codex CLI and
+Google's Gemini CLI, with a separate history for each. Clone this repository
+and point the CLI's hooks at
+`plugin/scripts/raindragon_eta_hook.py <event> --host codex|gemini`.
+[docs/INSTALL_CLI.md](docs/INSTALL_CLI.md) has the exact `~/.codex/hooks.json`
+(or `config.toml`) and `~/.gemini/settings.json` entries, Codex's one-time
+trust step in `/hooks`, and Gemini's `tools.enableHooks` gate on 0.22.x.
+
+There is no live clock in either CLI (neither status line runs a command):
+you get the range when you send a prompt. Codex turns get no incident
+warning; Gemini turns are flagged only during an open Gemini OUTAGE on
+Google's Workspace status dashboard. Built and tested with synthetic hook
+payloads; not yet run against a signed-in Codex or Gemini CLI.
+
 ### Verify a download
 
 Each release has a `SHA256SUMS` file. In the folder with the zips:
@@ -109,6 +126,7 @@ on the tagged commit builds the same bytes.
 | | Turn off (keeps history) | Remove completely |
 | :- | :- | :- |
 | Plugin | set **Enabled** off, or `export RAINDRAGON_ETA_OFF=1` | `claude plugin uninstall raindragon-eta@raindragon`, then delete `~/.claude/plugins/data/raindragon-eta*` and `~/.raindragon-eta` |
+| Codex / Gemini CLI | `"enabled": false` in `~/.codex/raindragon-eta/settings.json` or `~/.gemini/raindragon-eta/settings.json`, or `RAINDRAGON_ETA_OFF=1` | delete the hook entries, then `~/.codex/raindragon-eta` or `~/.gemini/raindragon-eta` |
 | Extension | untick **On** in its options | **Remove** on `chrome://extensions` (Chrome deletes its stored history with it) |
 
 Off means nothing is shown and nothing is recorded.
@@ -130,9 +148,11 @@ copy of the page's own conversation stream to see when a reply starts and
 ends, how many words it has and which model answered; the text is counted
 and dropped, never stored. On gemini.google.com it reads page markers, as on
 claude.ai (the stop button and the newest reply), and counts the reply's
-words in place. Each site keeps its own history. See
-[docs/PROVIDERS.md](docs/PROVIDERS.md) for how each surface measures a turn,
-and the plan for the Codex and Gemini CLIs.
+words in place. Each site keeps its own history. Codex CLI and Gemini CLI: the same script, run with `--host codex` or
+`--host gemini` from those CLIs' own hooks (`UserPromptSubmit`/`Stop`/
+`Interrupt`, and `BeforeAgent`/`AfterAgent`), with a separate history each.
+See [docs/PROVIDERS.md](docs/PROVIDERS.md) for how each surface measures a
+turn.
 
 "Similar" narrows by prompt size, conversation size and effort or model, and
 falls back to broader groups until one has at least 8 turns. Only your most

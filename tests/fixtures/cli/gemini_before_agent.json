@@ -1,0 +1,9 @@
+{
+  "_synthetic": "Hand-written from geminicli.com/docs/hooks/reference (BeforeAgent input). Not from a real session.",
+  "session_id": "gm-session-1",
+  "transcript_path": "/tmp/synthetic-gemini/chats/session-synthetic.json",
+  "cwd": "/tmp/synthetic-project",
+  "hook_event_name": "BeforeAgent",
+  "timestamp": "2026-10-19T10:00:00.000Z",
+  "prompt": "SYNTHETIC PROMPT: add a docstring"
+}

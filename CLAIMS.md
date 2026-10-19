@@ -77,6 +77,24 @@ range from your own history.
    incident has been seen in it yet, and there is no slowdown evidence for
    Gemini incidents.
 
+10. **In the Codex CLI and Gemini CLI it learns your pace in each CLI
+    separately.** Each CLI has its own history (`~/.codex/raindragon-eta/`,
+    `~/.gemini/raindragon-eta/`), never mixed with Claude Code's or each
+    other's, and starts from zero with the same first-run rule (claim 2).
+    Failed turns are excluded: in Codex, turns whose rollout log records an
+    error; in Gemini, turns that end with an empty reply. Stopped turns are
+    dropped. *Measured:* covered by tests with synthetic hook payloads and a
+    synthetic rollout file. Not yet run against a signed-in Codex or Gemini
+    CLI; coverage in either CLI is not measured.
+
+11. **In the Gemini CLI it warns during a Gemini outage that Google
+    reports.** Google's Workspace status dashboard, product "Gemini", open
+    incident with impact SERVICE_OUTAGE or severity high only. *Measured:*
+    rule covered by tests. That product is the Gemini app, not the Gemini API
+    the CLI calls, and there is no slowdown evidence for it, so say "Google
+    reports a Gemini outage", never "the Gemini CLI is down" or "major
+    incident".
+
 ## Do not say
 
 * "accurate", "precise", "predicts", "knows exactly"
@@ -93,6 +111,12 @@ range from your own history.
   synthetic page so far
 * that the extension works with the Codex CLI or the Gemini CLI: those are
   plugin hosts, see docs/PROVIDERS.md
+* that it shows a live timer in the Codex CLI or Gemini CLI: neither CLI's
+  status line can run a command, so the range is shown once, at the prompt
+* that it warns about Codex or OpenAI incidents in the Codex CLI: it does not
+  (the only feed with the Codex components is undocumented)
+* that the Codex/Gemini CLI support is tested live or as good as the Claude
+  Code plugin: synthetic payloads only so far, and Gemini has no model level
 * anything about other users' speed: every range is from your own history,
   and cross-user error is not measured until the beta
 
