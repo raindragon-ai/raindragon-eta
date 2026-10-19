@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "RainDragon ETA",
   "version": "0.2.0",
-  "description": "How long replies like this one usually take you on claude.ai, as a range from your own history. Flags major Claude incidents.",
+  "description": "How long replies like this one usually take you on claude.ai and chatgpt.com, as a range from your own history. Flags major Claude and ChatGPT incidents.",
   "icons": {
     "16": "icons/16.png",
     "48": "icons/48.png",
@@ -12,7 +12,8 @@
     "storage"
   ],
   "host_permissions": [
-    "https://status.claude.com/*"
+    "https://status.claude.com/*",
+    "https://status.openai.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -24,7 +25,30 @@
       ],
       "js": [
         "lib/predict.js",
+        "lib/pill.js",
         "content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://chatgpt.com/*"
+      ],
+      "js": [
+        "lib/chatgpt_sse.js",
+        "chatgpt_tap.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://chatgpt.com/*"
+      ],
+      "js": [
+        "lib/predict.js",
+        "lib/pill.js",
+        "chatgpt.js"
       ],
       "run_at": "document_idle"
     }

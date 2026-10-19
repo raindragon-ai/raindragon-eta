@@ -1,0 +1,12 @@
+event: delta_encoding
+data: "v1"
+
+event: delta
+data: {"p": "", "o": "add", "v": {"message": {"id": "msg-synthetic-3", "author": {"role": "assistant"}, "content": {"content_type": "text", "parts": [""]}, "status": "in_progress", "recipient": "all", "metadata": {"model_slug": "gpt-synthetic"}}, "conversation_id": "conv-synthetic"}, "c": 0}
+
+event: delta
+data: {"p": "/message/content/parts/0", "o": "append", "v": "Partial"}
+
+event: error
+data: {"message": "synthetic failure", "code": "synthetic"}
+

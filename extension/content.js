@@ -60,7 +60,7 @@
   function refreshStatus() {
     if (!settings.checkStatus) { incident = null; return; }
     try {
-      chrome.runtime.sendMessage({ type: "status" }, (r) => {
+      chrome.runtime.sendMessage({ type: "status", provider: "claude" }, (r) => {
         incident = chrome.runtime.lastError ? null : (r && r.incident) || null;
       });
     } catch (e) { incident = null; }
@@ -177,27 +177,9 @@
 
   // ---------- the pill ----------
 
-  const host = document.createElement("div");
-  host.id = "raindragon-eta-host";
-  const shadow = host.attachShadow({ mode: "closed" });
-  shadow.innerHTML =
-    '<style>' +
-    ':host{all:initial}' +
-    '.pill{position:fixed;z-index:2147483000;max-width:min(640px,90vw);' +
-    'font:12px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;' +
-    'padding:3px 10px;border-radius:999px;pointer-events:none;' +
-    'background:rgba(240,238,230,.95);color:#3d3929;border:1px solid rgba(0,0,0,.08);' +
-    'white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
-    '.warn{color:#9a3412}' +
-    '@media (prefers-color-scheme:dark){.pill{background:rgba(48,48,46,.95);color:#e8e6dc;' +
-    'border-color:rgba(255,255,255,.1)}.warn{color:#fdba74}}' +
-    '</style><div class="pill" hidden></div>';
-  const pill = shadow.querySelector(".pill");
-
-  function clock(ms) {
-    const s = Math.floor(ms / 1000);
-    return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
-  }
+  const PILL = self.RainDragonEtaPill;
+  const pill = PILL.create();
+  const clock = PILL.clock;
 
   function message() {
     const warn = incident ? 'Claude status: "' + incident + '". Replies may be slower.' : "";
@@ -219,20 +201,7 @@
     const input = $(SEL.input);
     const box = input && (input.closest("fieldset") || input);
     const m = settings.enabled ? message() : { text: "", warn: "" };
-    if (!box || (!m.text && !m.warn)) { pill.hidden = true; return; }
-    if (!host.isConnected) document.documentElement.appendChild(host);
-    pill.textContent = "";
-    if (m.text) pill.appendChild(document.createTextNode("RainDragon ETA · " + m.text));
-    if (m.warn) {
-      const w = document.createElement("span");
-      w.className = "warn";
-      w.textContent = (m.text ? " · " : "RainDragon ETA · ") + m.warn;
-      pill.appendChild(w);
-    }
-    const r = box.getBoundingClientRect();
-    pill.style.left = Math.max(8, r.left + 12) + "px";
-    pill.style.top = Math.max(4, r.top - 26) + "px";
-    pill.hidden = false;
+    pill.show(box, m.text, m.warn);
   }
 
   load();

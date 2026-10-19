@@ -1,7 +1,8 @@
 const T = self.RainDragonEta;
 const DEFAULTS = { enabled: true, band: "50", checkStatus: true, showResult: false };
 const $ = (id) => document.getElementById(id);
-let state = { settings: DEFAULTS, history: [] };
+const PROVS = Object.values(T.PROVIDERS);   // claude.ai, chatgpt.com: separate histories
+let state = { settings: DEFAULTS, histories: {} };
 
 function flash(text) {
   $("saved").textContent = text;
@@ -10,45 +11,62 @@ function flash(text) {
 
 function pct(x) { return Math.round(x * 100) + "%"; }
 
-function render() {
-  const s = state.settings, h = state.history;
-  $("version").textContent = "v" + T.VERSION;
-  $("enabled").checked = !!s.enabled;
-  $("band").value = s.band;
-  $("showResult").checked = !!s.showResult;
-  $("checkStatus").checked = !!s.checkStatus;
+function evalLine(h, band) {
   const good = T.learnedCount(h);
-  $("count").textContent = h.length + " replies saved on this device (" + good +
-    " used for estimates; durations and word counts only).";
-  const e = T.evaluate(h, s.band);
-  if (!e.scored) {
-    $("eval").textContent = "Accuracy check: not enough replies yet (" + good + " of " + T.MIN_READY + ").";
-    return;
-  }
+  const e = T.evaluate(h, band);
+  if (!e.scored) return "accuracy check: not enough replies yet (" + good + " of " + T.MIN_READY + ").";
   const parts = Object.keys(e.byBand).sort().reverse().map((k) => {
     const b = e.byBand[k];
     return pct(b.hits / b.scored) + " of " + b.scored + " landed in the " +
       (k === "80" ? "8-in-10 band (target 80%)" : "middle-half band (target 50%)");
   });
-  $("eval").textContent = "How often the band held on your own replies: " + parts.join("; ") +
+  return "how often the band held on your own replies: " + parts.join("; ") +
     ". Typical band: top is " + e.medianRatio.toFixed(1) + "x the bottom.";
 }
 
+function render() {
+  const s = state.settings;
+  $("version").textContent = "v" + T.VERSION;
+  $("enabled").checked = !!s.enabled;
+  $("band").value = s.band;
+  $("showResult").checked = !!s.showResult;
+  $("checkStatus").checked = !!s.checkStatus;
+  $("count").textContent = "";
+  $("eval").textContent = "";
+  for (const p of PROVS) {
+    const h = state.histories[p.id] || [];
+    const div = document.createElement("div");
+    div.textContent = p.site + ": " + h.length + " replies saved on this device (" + T.learnedCount(h) +
+      " used for estimates; durations and word counts only); " + evalLine(h, s.band);
+    $("count").appendChild(div);
+  }
+}
+
 function diagnostics() {
-  const h = state.history, good = T.learnedCount(h), e = T.evaluate(h, state.settings.band);
+  const per = {};
+  for (const p of PROVS) {
+    const h = state.histories[p.id] || [], good = T.learnedCount(h), e = T.evaluate(h, state.settings.band);
+    per[p.id] = {
+      replies_recorded: h.length, replies_used: good,
+      replies_failed: h.filter((r) => !r.ok).length,
+      replies_in_incident: h.filter((r) => r.ok && r.incident).length,
+      phase: good < T.MIN_READY ? "learning (no band yet)" : good < T.CONFIDENT ? "learning (wide band)" : "ready",
+      coverage: e.coverage, scored: e.scored, median_ratio: e.medianRatio,
+    };
+  }
   return JSON.stringify({
     name: "raindragon-eta-extension", version: T.VERSION, settings: state.settings,
-    replies_recorded: h.length, replies_used: good,
-    replies_failed: h.filter((r) => !r.ok).length,
-    replies_in_incident: h.filter((r) => r.ok && r.incident).length,
-    phase: good < T.MIN_READY ? "learning (no band yet)" : good < T.CONFIDENT ? "learning (wide band)" : "ready",
-    coverage: e.coverage, scored: e.scored, median_ratio: e.medianRatio,
+    sites: per,
     browser: navigator.userAgent.replace(/\s*\(.*?\)\s*/g, " ").trim(),
   }, null, 2);
 }
 
-chrome.storage.local.get({ settings: DEFAULTS, history: [] }, (v) => {
-  state = { settings: Object.assign({}, DEFAULTS, v.settings), history: v.history || [] };
+const want = { settings: DEFAULTS };
+for (const p of PROVS) want[p.historyKey] = [];
+chrome.storage.local.get(want, (v) => {
+  const histories = {};
+  for (const p of PROVS) histories[p.id] = Array.isArray(v[p.historyKey]) ? v[p.historyKey] : [];
+  state = { settings: Object.assign({}, DEFAULTS, v.settings), histories };
   render();
 });
 
@@ -66,5 +84,7 @@ $("copy").addEventListener("click", () => {
 });
 
 $("clear").addEventListener("click", () => {
-  chrome.storage.local.set({ history: [] }, () => { state.history = []; render(); flash("Cleared"); });
+  const empty = { chatgpt_model: null };
+  for (const p of PROVS) empty[p.historyKey] = [];
+  chrome.storage.local.set(empty, () => { state.histories = {}; render(); flash("Cleared"); });
 });

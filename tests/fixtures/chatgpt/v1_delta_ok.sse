@@ -1,0 +1,31 @@
+event: delta_encoding
+data: "v1"
+
+event: delta
+data: {"p": "", "o": "add", "v": {"message": {"id": "msg-synthetic-0", "author": {"role": "user"}, "content": {"content_type": "text", "parts": ["synthetic prompt words"]}, "status": "finished_successfully", "recipient": "all", "metadata": {}}, "conversation_id": "conv-synthetic"}, "c": 0}
+
+event: delta
+data: {"p": "", "o": "add", "v": {"message": {"id": "msg-synthetic-1", "author": {"role": "assistant"}, "content": {"content_type": "thoughts", "thoughts": []}, "status": "in_progress", "recipient": "all", "metadata": {"model_slug": "gpt-synthetic-thinking"}}, "conversation_id": "conv-synthetic"}, "c": 1}
+
+event: delta
+data: {"p": "/message/content/thoughts/0/content", "o": "append", "v": "reasoning that must not be counted at all"}
+
+event: delta
+data: {"p": "", "o": "add", "v": {"message": {"id": "msg-synthetic-2", "author": {"role": "assistant"}, "content": {"content_type": "text", "parts": [""]}, "status": "in_progress", "recipient": "all", "metadata": {"model_slug": "gpt-synthetic", "resolved_model_slug": "gpt-synthetic-thinking"}}, "conversation_id": "conv-synthetic"}, "c": 2}
+
+event: delta
+data: {"p": "/message/content/parts/0", "o": "append", "v": "Alpha bra"}
+
+event: delta
+data: {"v": "vo charlie"}
+
+event: delta
+data: {"v": " delta echo"}
+
+event: delta
+data: {"p": "", "o": "patch", "v": [{"p": "/message/content/parts/0", "o": "append", "v": " foxtrot."}, {"p": "/message/status", "o": "replace", "v": "finished_successfully"}]}
+
+data: {"type": "message_stream_complete", "conversation_id": "conv-synthetic"}
+
+data: [DONE]
+

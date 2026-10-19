@@ -1,0 +1,22 @@
+event: delta_encoding
+data: "v1"
+
+event: delta
+data: {"p": "", "o": "add", "v": {"message": {"id": "msg-synthetic-5", "author": {"role": "assistant"}, "content": {"content_type": "code", "text": ""}, "status": "in_progress", "recipient": "web", "metadata": {"model_slug": "gpt-synthetic"}}, "conversation_id": "conv-synthetic"}, "c": 0}
+
+event: delta
+data: {"p": "/message/content/text", "o": "append", "v": "search(\"synthetic\")"}
+
+event: delta
+data: {"p": "", "o": "add", "v": {"message": {"id": "msg-synthetic-6", "author": {"role": "tool", "name": "web"}, "content": {"content_type": "text", "parts": ["synthetic tool output that is not the reply"]}, "status": "finished_successfully", "recipient": "all", "metadata": {}}, "conversation_id": "conv-synthetic"}, "c": 1}
+
+event: delta
+data: {"p": "", "o": "add", "v": {"message": {"id": "msg-synthetic-7", "author": {"role": "assistant"}, "content": {"content_type": "text", "parts": [""]}, "status": "in_progress", "recipient": "all", "metadata": {"model_slug": "gpt-synthetic"}}, "conversation_id": "conv-synthetic"}, "c": 2}
+
+event: delta
+data: {"p": "/message/content/parts/0", "o": "append", "v": "Three reply words"}
+
+data: {"type": "message_stream_complete", "conversation_id": "conv-synthetic"}
+
+data: [DONE]
+

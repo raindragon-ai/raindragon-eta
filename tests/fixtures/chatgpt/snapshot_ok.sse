@@ -1,0 +1,8 @@
+data: {"message": {"id": "msg-synthetic-9", "author": {"role": "assistant"}, "content": {"content_type": "text", "parts": ["One"]}, "status": "in_progress", "recipient": "all", "metadata": {"model_slug": "gpt-synthetic-mini"}}, "conversation_id": "conv-synthetic", "error": null}
+
+data: {"message": {"id": "msg-synthetic-9", "author": {"role": "assistant"}, "content": {"content_type": "text", "parts": ["One two three"]}, "status": "in_progress", "recipient": "all", "metadata": {"model_slug": "gpt-synthetic-mini"}}, "conversation_id": "conv-synthetic", "error": null}
+
+data: {"message": {"id": "msg-synthetic-9", "author": {"role": "assistant"}, "content": {"content_type": "text", "parts": ["One two three four"]}, "status": "finished_successfully", "recipient": "all", "metadata": {"model_slug": "gpt-synthetic-mini"}}, "conversation_id": "conv-synthetic", "error": null}
+
+data: [DONE]
+
