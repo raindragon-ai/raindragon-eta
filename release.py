@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Build the release artefacts and their checksums (RAI-328).
 
-    python3 release.py            -> dist/raindragon-eta-plugin-<v>.zip
-                                     dist/raindragon-eta-extension-<v>.zip
+    python3 release.py            -> dist/raindragon-forecast-plugin-<v>.zip
+                                     dist/raindragon-forecast-extension-<v>.zip
                                      dist/SHA256SUMS
 
 The zips are reproducible: files in sorted order, fixed timestamps and
@@ -74,8 +74,8 @@ def main() -> int:
     os.makedirs(dist, exist_ok=True)
     built = []
     for part in ("plugin", "extension"):
-        name = "raindragon-eta-%s-%s.zip" % (part, version)
-        build_zip(os.path.join(HERE, part), os.path.join(dist, name), "raindragon-eta-%s/" % part)
+        name = "raindragon-forecast-%s-%s.zip" % (part, version)
+        build_zip(os.path.join(HERE, part), os.path.join(dist, name), "raindragon-forecast-%s/" % part)
         built.append(name)
     with open(os.path.join(dist, "SHA256SUMS"), "w") as f:
         for name in built:

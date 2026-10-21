@@ -1,3 +1,3 @@
-"""RainDragon ETA: duration bands for Claude Code turns, from your own history."""
+"""RainDragon Forecast: how long Claude Code turns usually take you, from your own history."""
 
 __version__ = "0.2.0"

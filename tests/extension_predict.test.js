@@ -31,7 +31,7 @@ test("under CONFIDENT replies the band is the wide one, labelled learning", () =
   const p = T.predict(h, 50, 100, "Opus 5.5 Medium", "50");
   assert.equal(p.coverage, "80");
   assert.equal(p.learning, true);
-  assert.match(T.bandLine(p), /^8 in 10 of your similar replies took .*, still learning\)$/);
+  assert.match(T.bandLine(p), /^Forecast .* · still learning$/);
 });
 
 test("eighty band is wider", () => {
@@ -70,9 +70,25 @@ test("text matches the Claude Code plugin's rounding", () => {
 
 test("band line", () => {
   const line = T.bandLine({ dur: { low: 20, high: 65 }, words: { low: 300, high: 800 }, n: 24, coverage: "50" });
-  assert.equal(line, "Half of your similar replies took 20s–1m, 300–800 words (from 24)");
+  assert.equal(line, "Forecast 20s–1m · 300–800 words");
   const eighty = T.bandLine({ dur: { low: 5, high: 5 }, words: null, n: 10, coverage: "80" });
-  assert.equal(eighty, "8 in 10 of your similar replies took 5s (from 10)");
+  assert.equal(eighty, "Forecast 5s");
+});
+
+test("live line: range then clock, then running long once past the top", () => {
+  const band = { dur: { low: 20, high: 65 }, words: { low: 300, high: 800 }, n: 24, coverage: "50" };
+  assert.deepEqual(T.liveLine(band, 12_000), { text: "Forecast 20s–1m · 300–800 words · 0:12", long: false });
+  assert.deepEqual(T.liveLine(band, 80_000), { text: "1:20 · running long · forecast was 20s–1m", long: true });
+  assert.deepEqual(T.liveLine(null, 5_000), { text: "0:05", long: false });
+});
+
+test("done line says where the reply landed", () => {
+  const band = { dur: { low: 20, high: 65 } };
+  assert.equal(T.doneLine(42, 450, band), "Done in 0:42, 450 words · inside the forecast");
+  assert.equal(T.doneLine(90, 450, band), "Done in 1:30, 450 words · longer than the forecast (20s–1m)");
+  assert.equal(T.doneLine(5, 1, band), "Done in 0:05, 1 word · quicker than the forecast (20s–1m)");
+  assert.equal(T.doneLine(42, 450, null), "Done in 0:42, 450 words");
+  assert.equal(T.incidentLine("Claude"), "Storm warning: Claude has a major incident. Replies may be slower.");
 });
 
 test("claude.ai incident reported, Console-only incident ignored", () => {
@@ -99,7 +115,7 @@ test("one word is singular", () => {
   assert.equal(T.wordsText(1, 1), "1 word");
   assert.equal(T.wordsText(300, 800), "300–800 words");
   assert.equal(T.bandLine({ dur: { low: 2, high: 3 }, words: { low: 1, high: 1 }, n: 10, coverage: "50" }),
-    "Half of your similar replies took 2s–3s, 1 word (from 10)");
+    "Forecast 2s–3s · 1 word");
 });
 
 test("evaluate scores each reply only from earlier ones", () => {
@@ -120,7 +136,7 @@ test("options page names the maker with a safe outbound link", () => {
   const html = require("node:fs").readFileSync(require("node:path").join(__dirname, "../extension/options.html"), "utf8");
   const a = html.match(/<a [^>]*href="([^"]+)"[^>]*>RainDragon AI<\/a>/);
   assert.ok(a, "Made by RainDragon AI link");
-  assert.ok(a[1].startsWith("https://inference.raindragon.ai/?utm_source=raindragon-eta&utm_medium=extension"));
+  assert.ok(a[1].startsWith("https://inference.raindragon.ai/?utm_source=raindragon-forecast&utm_medium=extension"));
   assert.match(a[0], /rel="noopener"/);
 });
 

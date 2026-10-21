@@ -1,4 +1,4 @@
-/* RainDragon ETA on claude.ai.
+/* RainDragon Forecast on claude.ai.
  *
  * While you type: a band from your own similar past replies, for example
  * "Half of your similar replies took 20s–1m, 300–800 words (from 24)".
@@ -141,8 +141,7 @@
     }
     save(rec);
     if (ok && settings.showResult) {
-      let text = "Took " + T.duration(dur) + ", " + T.wordsText(rec.words);
-      if (p.band) text += " · " + T.bandLine(p.band);
+      const text = T.doneLine(dur, rec.words, p.band);
       lastResult = { text, until: Date.now() + 15000 };
     }
   }
@@ -179,29 +178,26 @@
 
   const PILL = self.RainDragonEtaPill;
   const pill = PILL.create();
-  const clock = PILL.clock;
 
   function message() {
-    const warn = incident ? 'Claude status: "' + incident + '". Replies may be slower.' : "";
+    const warn = incident ? T.incidentLine("Claude") : "";
     if (pending) {
-      const parts = [clock(Date.now() - pending.start)];
-      if (pending.band) parts.push(T.bandLine(pending.band));
-      return { text: parts.join(" · "), warn };
+      const live = T.liveLine(pending.band, Date.now() - pending.start);
+      return { text: live.text, warn, long: live.long };
     }
     if (lastResult && Date.now() < lastResult.until) return { text: lastResult.text, warn };
     const pc = promptChars();
     if (pc === 0) return { text: "", warn };
     const b = T.predict(history, pc, contextChars(false), modelLabel(), settings.band);
     if (b) return { text: T.bandLine(b), warn };
-    return { text: "Learning your pace: estimates start after " + T.MIN_READY +
-             " replies (" + T.learnedCount(history) + " so far)", warn };
+    return { text: T.learningLine(T.learnedCount(history)), warn };
   }
 
   function render() {
     const input = $(SEL.input);
     const box = input && (input.closest("fieldset") || input);
     const m = settings.enabled ? message() : { text: "", warn: "" };
-    pill.show(box, m.text, m.warn);
+    pill.show(box, m.text, m.warn, m.long);
   }
 
   load();

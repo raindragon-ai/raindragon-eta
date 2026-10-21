@@ -15,6 +15,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "plugin", "scri
 import raindragon_eta_hook as hook  # noqa: E402
 from raindragon_eta import hosts, predict, status, store  # noqa: E402
 
+MARK = "\u260a\u260b "  # the Dragon's Head and Tail mark that starts every line
+
 FIX = os.path.join(os.path.dirname(__file__), "fixtures", "cli")
 
 
@@ -50,11 +52,11 @@ def env(tmp_path):
 
 
 def codex_dir(env):
-    return os.path.join(env["HOME"], ".codex", "raindragon-eta")
+    return os.path.join(env["HOME"], ".codex", "raindragon-forecast")
 
 
 def gemini_dir(env):
-    return os.path.join(env["HOME"], ".gemini", "raindragon-eta")
+    return os.path.join(env["HOME"], ".gemini", "raindragon-forecast")
 
 
 # ---------- payload builders (from the synthetic fixtures) ----------
@@ -120,7 +122,7 @@ def test_codex_interrupt_drops_the_turn(env):
 
 def test_codex_first_run_learns_from_zero_then_wide_then_chosen_band(env):
     out = run("prompt", codex_prompt(1), env, 0, "codex")["systemMessage"]
-    assert "(0 so far)" in out
+    assert out == "%sRainDragon Forecast is learning your pace. Ranges start after 10 turns." % MARK
     run("stop", codex_stop(1), env, 40, "codex")
     t = codex_turns(env, predict.MIN_READY - 1, t0=100)
     out = run("prompt", codex_prompt(9000), env, t, "codex")["systemMessage"]
@@ -128,7 +130,8 @@ def test_codex_first_run_learns_from_zero_then_wide_then_chosen_band(env):
     run("stop", codex_stop(9000), env, t + 40, "codex")
     t = codex_turns(env, predict.CONFIDENT, t0=t + 100)
     out = run("prompt", codex_prompt(9001), env, t, "codex")["systemMessage"]
-    assert out.startswith("RainDragon ETA: Half of your similar turns took") and "still learning" not in out
+    assert out.startswith(MARK + "Forecast ") and "· half of your similar turns" in out
+    assert "still learning" not in out
 
 
 def _write_rollout(tmp_path, turn_id, payload_type="task_complete", error=None, duration_ms=73_000):
@@ -213,11 +216,11 @@ def test_codex_settings_file_and_no_inherited_claude_options(env):
         json.dump({"show_result": True}, f)
     env = dict(env, CLAUDE_PLUGIN_OPTION_ENABLED="false", CLAUDE_PLUGIN_DATA="/should/not/be/used")
     run("prompt", codex_prompt(1), env, 0, "codex")
-    assert run("stop", codex_stop(1), env, 30, "codex")["systemMessage"] == "RainDragon ETA: took 30s"
+    assert run("stop", codex_stop(1), env, 30, "codex")["systemMessage"] == MARK + "done in 0:30"
 
 
 def test_codex_kill_switch(env):
-    env = dict(env, RAINDRAGON_ETA_OFF="1")
+    env = dict(env, RAINDRAGON_FORECAST_OFF="1")
     assert run("prompt", codex_prompt(1), env, 0, "codex") is None
     run("stop", codex_stop(1), env, 30, "codex")
     assert not os.path.exists(os.path.join(codex_dir(env), "history.jsonl"))
@@ -264,7 +267,7 @@ def test_gemini_unfinished_turn_is_dropped_at_next_prompt(env):
 
 def test_gemini_first_run_learns_from_zero(env):
     out = run("prompt", gemini_before(), env, 0, "gemini")["systemMessage"]
-    assert "(0 so far)" in out
+    assert "learning your pace" in out
     run("stop", gemini_after(), env, 20, "gemini")
     t = gemini_turns(env, predict.MIN_READY - 2, t0=100)
     assert run("prompt", gemini_before(), env, t, "gemini") is None   # said once per session
@@ -300,14 +303,14 @@ def test_each_host_keeps_its_own_history(env, tmp_path):
     assert [r["dur"] for r in store.read_history(gemini_dir(env))] == [7] * 2
     assert [r["dur"] for r in store.read_history(str(tmp_path / "claude-data"))] == [60]
     # only Claude Code's live status line needs the pointer file
-    pointer = os.path.join(env["HOME"], ".raindragon-eta", "data_dir")
+    pointer = os.path.join(env["HOME"], ".raindragon-forecast", "data_dir")
     assert open(pointer).read() == str(tmp_path / "claude-data")
 
 
 def test_codex_band_never_counts_gemini_turns(env):
     gemini_turns(env, 40, dur=lambda i: 5)
     out = run("prompt", codex_prompt(1), env, 99999, "codex")["systemMessage"]
-    assert "learning your pace" in out and "(0 so far)" in out
+    assert "learning your pace" in out
 
 
 def test_doctor_names_the_host(env):
@@ -320,7 +323,7 @@ def test_doctor_names_the_host(env):
 
 def test_unknown_host_does_nothing(env):
     assert run("prompt", codex_prompt(1), env, 0, "cursor") is None
-    assert not os.path.exists(os.path.join(env["HOME"], ".raindragon-eta"))
+    assert not os.path.exists(os.path.join(env["HOME"], ".raindragon-forecast"))
 
 
 # ---------- Gemini status (Google Workspace dashboard) ----------

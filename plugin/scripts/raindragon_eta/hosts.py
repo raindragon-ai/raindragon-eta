@@ -20,16 +20,18 @@ import json
 import os
 from typing import Optional
 
+from . import store
+
 HOSTS = ("claude", "codex", "gemini")
 
 #: Data folder per host, under the host's own config dir.
-DATA_SUBDIR = {"codex": (".codex", "raindragon-eta"), "gemini": (".gemini", "raindragon-eta")}
+DATA_SUBDIR = {"codex": (".codex", "raindragon-forecast"), "gemini": (".gemini", "raindragon-forecast")}
 
 #: Settings for hosts without plugin options live in <data>/settings.json,
 #: e.g. {"band": "80", "show_result": true, "check_status": false}. Hooks in
 #: Gemini CLI run in a sanitized environment, so a file is the reliable place.
 SETTING_KEYS = {"enabled": "ENABLED", "band": "BAND", "show_result": "SHOW_RESULT",
-                "check_status": "CHECK_STATUS"}
+                "check_status": "CHECK_STATUS", "mark": "MARK"}
 
 ROLLOUT_TAIL_BYTES = 1_000_000  # read at most the last 1 MB of a Codex rollout
 
@@ -44,8 +46,15 @@ def data_dir_env(env: dict, host: str) -> dict:
     if host == "claude":
         return env
     env = dict(env)
-    d = env.get("RAINDRAGON_ETA_DATA") or os.path.join(home(env), *DATA_SUBDIR[host])
+    # RAINDRAGON_ETA_DATA is the name from before the rename; still honoured
+    d = (env.get("RAINDRAGON_FORECAST_DATA") or env.get("RAINDRAGON_ETA_DATA")
+         or os.path.join(home(env), *DATA_SUBDIR[host]))
     env["CLAUDE_PLUGIN_DATA"] = d
+    try:
+        os.makedirs(d, exist_ok=True)
+        store.migrate_old_history(env, d)   # before settings.json is read below
+    except OSError:
+        pass
     for k in list(env):
         if k.startswith("CLAUDE_PLUGIN_OPTION_"):
             del env[k]   # never inherit Claude Code's options into another host

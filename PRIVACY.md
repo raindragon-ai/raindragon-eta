@@ -1,6 +1,6 @@
 # Privacy
 
-RainDragon ETA watches how long your Claude turns (and, with the extension,
+RainDragon Forecast watches how long your Claude turns (and, with the extension,
 your ChatGPT replies on chatgpt.com and Gemini replies on gemini.google.com;
 with the CLI hooks, your Codex CLI and Gemini CLI turns) take. That means it runs inside
 your sessions, so here is exactly what it does with them.
@@ -9,10 +9,10 @@ your sessions, so here is exactly what it does with them.
 
 Only on your machine:
 
-* **Plugin:** `~/.claude/plugins/data/raindragon-eta*/` (a text file per turn and a
+* **Plugin:** `~/.claude/plugins/data/forecast*/` (a text file per turn and a
   few small markers).
-* **Codex CLI / Gemini CLI hooks:** `~/.codex/raindragon-eta/` and
-  `~/.gemini/raindragon-eta/`, the same kind of files as the plugin, one
+* **Codex CLI / Gemini CLI hooks:** `~/.codex/raindragon-forecast/` and
+  `~/.gemini/raindragon-forecast/`, the same kind of files as the plugin, one
   folder per CLI, plus your optional `settings.json` there.
 * **Extension:** Chrome's local storage for the extension. claude.ai,
   chatgpt.com and gemini.google.com replies are kept in three separate
@@ -31,7 +31,7 @@ For each finished turn it keeps:
 | Reply length in words (extension) | `350` |
 | Whether it failed (and, in Codex, the error kind), or ran during an incident | `"ok": true, "incident": false`, `"error": "server_overloaded"` |
 
-The plugin also writes one file outside that folder, `~/.raindragon-eta/data_dir`,
+The plugin also writes one file outside that folder, `~/.raindragon-forecast/data_dir`,
 holding only the path of the folder above, so the live status line can find
 the turn in progress.
 
@@ -112,7 +112,7 @@ default, opt-in, and show you exactly what would be sent before anything is.
 
 ## Diagnostics
 
-`/raindragon-eta:doctor` and **Copy diagnostics** print the version, your settings
+`/forecast:doctor` and **Copy diagnostics** print the version, your settings
 and turn counts so you can paste them into a bug report. They contain no
 content. You choose whether to share them.
 
@@ -120,8 +120,8 @@ content. You choose whether to share them.
 
 * Extension: **Clear my history** in its options (clears claude.ai,
   chatgpt.com and gemini.google.com), or remove the extension.
-* Plugin: delete `~/.claude/plugins/data/raindragon-eta*` and `~/.raindragon-eta` (and
+* Plugin: delete `~/.claude/plugins/data/forecast*` and `~/.raindragon-forecast` (and
   uninstall it if you like).
-* Codex / Gemini CLI: delete `~/.codex/raindragon-eta` or
-  `~/.gemini/raindragon-eta` (and the hook entries). Codex's own session logs
+* Codex / Gemini CLI: delete `~/.codex/raindragon-forecast` or
+  `~/.gemini/raindragon-forecast` (and the hook entries). Codex's own session logs
   are Codex's; the script never writes to them.

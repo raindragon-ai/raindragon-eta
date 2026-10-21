@@ -1,4 +1,4 @@
-# RainDragon ETA in Codex CLI and Gemini CLI
+# RainDragon Forecast in Codex CLI and Gemini CLI
 
 The Claude Code plugin's hook script also runs as a hook in OpenAI's Codex
 CLI (`--host codex`) and Google's Gemini CLI (`--host gemini`). It shows the
@@ -11,10 +11,10 @@ something looks off, `doctor` (below) prints counts you can paste into a bug
 report.
 
 What you need: Python 3.8+ as `python3`, and a copy of this repository. The
-examples assume it is at `~/raindragon-eta`; use your own absolute path.
+examples assume it is at `~/raindragon-forecast`; use your own absolute path.
 
 ```sh
-git clone https://github.com/raindragon-ai/raindragon-eta ~/raindragon-eta
+git clone https://github.com/raindragon-ai/raindragon-forecast ~/raindragon-forecast
 ```
 
 ## Codex CLI
@@ -29,15 +29,15 @@ Add the hooks to `~/.codex/hooks.json`:
   "hooks": {
     "UserPromptSubmit": [
       {"hooks": [{"type": "command", "timeout": 5,
-                  "command": "python3 ~/raindragon-eta/plugin/scripts/raindragon_eta_hook.py prompt --host codex"}]}
+                  "command": "python3 ~/raindragon-forecast/plugin/scripts/raindragon_eta_hook.py prompt --host codex"}]}
     ],
     "Stop": [
       {"hooks": [{"type": "command", "timeout": 5,
-                  "command": "python3 ~/raindragon-eta/plugin/scripts/raindragon_eta_hook.py stop --host codex"}]}
+                  "command": "python3 ~/raindragon-forecast/plugin/scripts/raindragon_eta_hook.py stop --host codex"}]}
     ],
     "Interrupt": [
       {"hooks": [{"type": "command", "timeout": 3,
-                  "command": "python3 ~/raindragon-eta/plugin/scripts/raindragon_eta_hook.py interrupt --host codex"}]}
+                  "command": "python3 ~/raindragon-forecast/plugin/scripts/raindragon_eta_hook.py interrupt --host codex"}]}
     ]
   }
 }
@@ -49,26 +49,26 @@ Or the same inline in `~/.codex/config.toml`:
 [[hooks.UserPromptSubmit]]
 [[hooks.UserPromptSubmit.hooks]]
 type = "command"
-command = "python3 ~/raindragon-eta/plugin/scripts/raindragon_eta_hook.py prompt --host codex"
+command = "python3 ~/raindragon-forecast/plugin/scripts/raindragon_eta_hook.py prompt --host codex"
 timeout = 5
 
 [[hooks.Stop]]
 [[hooks.Stop.hooks]]
 type = "command"
-command = "python3 ~/raindragon-eta/plugin/scripts/raindragon_eta_hook.py stop --host codex"
+command = "python3 ~/raindragon-forecast/plugin/scripts/raindragon_eta_hook.py stop --host codex"
 timeout = 5
 
 [[hooks.Interrupt]]
 [[hooks.Interrupt.hooks]]
 type = "command"
-command = "python3 ~/raindragon-eta/plugin/scripts/raindragon_eta_hook.py interrupt --host codex"
+command = "python3 ~/raindragon-forecast/plugin/scripts/raindragon_eta_hook.py interrupt --host codex"
 timeout = 3
 ```
 
 Use one of the two, not both (Codex merges them and warns).
 
 **One-time trust step.** Codex skips hooks you have not reviewed. Start
-`codex`, run `/hooks`, review the three RainDragon ETA hooks and trust them.
+`codex`, run `/hooks`, review the three RainDragon Forecast hooks and trust them.
 Trust is tied to the hook's hash, so if you change a command (or the path),
 Codex asks again.
 
@@ -92,7 +92,7 @@ Limits:
 * **No live clock.** Codex's status line (`tui.status_line`) takes built-in
   items only, not a command (openai/codex#17827, open), so there is no
   running timer like the Claude Code status line. You get the range at the
-  prompt, and with `show_result` a "took 1m" line at the end.
+  prompt, and with `show_result` a "done in 1:00" line at the end.
 * **No incident warnings.** status.openai.com's documented summary omits
   the Codex components; the feed that has them is undocumented, so Codex
   turns are never flagged.
@@ -112,19 +112,19 @@ Add to `~/.gemini/settings.json` (merge with what is there):
 {
   "hooks": {
     "BeforeAgent": [
-      {"hooks": [{"name": "raindragon-eta-start", "type": "command", "timeout": 5000,
-                  "command": "python3 ~/raindragon-eta/plugin/scripts/raindragon_eta_hook.py prompt --host gemini"}]}
+      {"hooks": [{"name": "raindragon-forecast-start", "type": "command", "timeout": 5000,
+                  "command": "python3 ~/raindragon-forecast/plugin/scripts/raindragon_eta_hook.py prompt --host gemini"}]}
     ],
     "AfterAgent": [
-      {"hooks": [{"name": "raindragon-eta-stop", "type": "command", "timeout": 5000,
-                  "command": "python3 ~/raindragon-eta/plugin/scripts/raindragon_eta_hook.py stop --host gemini"}]}
+      {"hooks": [{"name": "raindragon-forecast-stop", "type": "command", "timeout": 5000,
+                  "command": "python3 ~/raindragon-forecast/plugin/scripts/raindragon_eta_hook.py stop --host gemini"}]}
     ]
   }
 }
 ```
 
 (Gemini timeouts are in milliseconds.) `/hooks panel` lists them;
-`/hooks disable raindragon-eta-start` turns one off.
+`/hooks disable raindragon-forecast-start` turns one off.
 
 **Version gate.** On Gemini CLI 0.22.x hooks are off unless you also set
 
@@ -170,8 +170,8 @@ other's:
 
 | | Folder |
 | :- | :- |
-| Codex CLI | `~/.codex/raindragon-eta/` |
-| Gemini CLI | `~/.gemini/raindragon-eta/` |
+| Codex CLI | `~/.codex/raindragon-forecast/` |
+| Gemini CLI | `~/.gemini/raindragon-forecast/` |
 
 Settings go in `settings.json` in that folder (Gemini runs hooks in a
 sanitized environment, so a file is the reliable place):
@@ -180,14 +180,20 @@ sanitized environment, so a file is the reliable place):
 { "band": "50", "show_result": false, "check_status": true }
 ```
 
-`band` is `"50"` (middle half, default) or `"80"`. `RAINDRAGON_ETA_OFF=1`
-in the environment also turns it off.
+`band` is `"50"` (middle half, default) or `"80"`. `"mark": "rd"` or
+`"mark": "none"` replaces the ☊☋ symbol if your terminal shows boxes.
+`RAINDRAGON_FORECAST_OFF=1` in the environment also turns it off (the old
+`RAINDRAGON_ETA_OFF=1` still works).
+
+Upgrading from RainDragon ETA: update the hook entries above to the new path
+and names. The first run copies your old `~/.codex/raindragon-eta` or
+`~/.gemini/raindragon-eta` history and settings into the new folder.
 
 Check it is working (counts only, no content):
 
 ```sh
-python3 ~/raindragon-eta/plugin/scripts/raindragon_eta_hook.py doctor --host codex
-python3 ~/raindragon-eta/plugin/scripts/raindragon_eta_hook.py doctor --host gemini
+python3 ~/raindragon-forecast/plugin/scripts/raindragon_eta_hook.py doctor --host codex
+python3 ~/raindragon-forecast/plugin/scripts/raindragon_eta_hook.py doctor --host gemini
 ```
 
 Remove: delete the hook entries, then the folder above.

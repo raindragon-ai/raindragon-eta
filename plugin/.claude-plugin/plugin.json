@@ -1,15 +1,16 @@
 {
-  "name": "raindragon-eta",
-  "displayName": "RainDragon ETA",
+  "name": "forecast",
+  "displayName": "RainDragon Forecast",
   "version": "0.2.0",
-  "description": "How long turns like this one usually take you, as a range from your own past turns, with a live clock in the status line. Flags major Claude incidents.",
+  "description": "Shows how long your Claude Code turns usually take, as a range from your own past turns, with a live clock while Claude works. Warns when Claude has a major incident.",
   "author": {
     "name": "RainDragon AI"
   },
-  "homepage": "https://github.com/raindragon-ai/raindragon-eta",
-  "repository": "https://github.com/raindragon-ai/raindragon-eta",
+  "homepage": "https://github.com/raindragon-ai/raindragon-forecast",
+  "repository": "https://github.com/raindragon-ai/raindragon-forecast",
   "license": "Apache-2.0",
   "keywords": [
+    "forecast",
     "eta",
     "duration",
     "status"
@@ -19,19 +20,19 @@
     "enabled": {
       "type": "boolean",
       "title": "Enabled",
-      "description": "Turn the estimates off without uninstalling. Off means nothing is shown and nothing is recorded.",
+      "description": "Turn Forecast off without uninstalling. Off means nothing is shown and nothing is recorded.",
       "default": true
     },
     "band": {
       "type": "string",
-      "title": "Band width",
-      "description": "50 shows the middle half of similar past turns, 80 shows the middle 8 in 10 (wider, misses less often).",
+      "title": "Range width",
+      "description": "50 shows the middle half of your similar past turns. 80 shows the middle 8 in 10: wider, but misses less often.",
       "default": "50"
     },
     "show_result": {
       "type": "boolean",
       "title": "Show actual time",
-      "description": "After each turn, show how long it took next to the band.",
+      "description": "After each turn, show how long it really took and whether that was inside the forecast.",
       "default": false
     },
     "check_status": {
@@ -39,6 +40,12 @@
       "title": "Check Claude status",
       "description": "Read status.claude.com (cached 2 minutes) to warn when Claude Code or the API has an incident. Nothing is sent except the request itself.",
       "default": true
+    },
+    "mark": {
+      "type": "string",
+      "title": "Mark",
+      "description": "What starts each line: symbol (the ☊☋ Dragon's Head and Tail), RD (plain letters, if your terminal shows boxes) or none.",
+      "default": "symbol"
     }
   }
 }

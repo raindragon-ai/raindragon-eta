@@ -1,4 +1,4 @@
-/* RainDragon ETA: read chatgpt.com's conversation stream for TIMING and LENGTH only.
+/* RainDragon Forecast: read chatgpt.com's conversation stream for TIMING and LENGTH only.
  *
  * chatgpt.com answers POST /backend-api/conversation (newer builds:
  * /backend-api/f/conversation) with a server-sent event stream. The format is

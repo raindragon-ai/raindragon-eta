@@ -1,4 +1,4 @@
-/* RainDragon ETA on chatgpt.com: timing tap (runs in the page's own JS world).
+/* RainDragon Forecast on chatgpt.com: timing tap (runs in the page's own JS world).
  *
  * Wraps window.fetch so that, for a NEW message sent to the conversation
  * endpoint (POST /backend-api/conversation or /backend-api/f/conversation,

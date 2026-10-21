@@ -5,6 +5,10 @@ history.jsonl  one line per finished turn: duration and coarse size buckets.
 pending/<sid>  the turn currently running in a session (start time + the
                estimate we showed), removed when the turn ends.
 noted/<sid>    marker that we already told this session we are still learning.
+
+The tool was called RainDragon ETA before 0.2.x became RainDragon Forecast.
+Renaming the plugin gives it a new data dir, so the first run copies the old
+history across (migrate_old_history) and nobody starts learning from zero.
 """
 
 from __future__ import annotations
@@ -12,17 +16,63 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 from typing import Optional
 
 MAX_HISTORY_BYTES = 512_000
 KEEP_LINES = 1000
 
 
+HOME_DIR = ".raindragon-forecast"
+OLD_HOME_DIR = ".raindragon-eta"   # name before the rename to Forecast
+
+
+def _home(env: dict) -> str:
+    return env.get("HOME") or os.path.expanduser("~")
+
+
 def data_dir(env: dict) -> str:
-    d = env.get("CLAUDE_PLUGIN_DATA") or os.path.join(os.path.expanduser("~"), ".raindragon-eta")
+    d = env.get("CLAUDE_PLUGIN_DATA") or os.path.join(_home(env), HOME_DIR)
     os.makedirs(os.path.join(d, "pending"), exist_ok=True)
     os.makedirs(os.path.join(d, "noted"), exist_ok=True)
+    migrate_old_history(env, d)
     return d
+
+
+def old_data_dirs(env: dict, d: str) -> list:
+    """Where a RainDragon ETA install kept its history, newest guess first:
+    the data dir the old plugin's pointer named, the old fallback folder, and
+    the same folder name with -eta for the Codex / Gemini hosts."""
+    home = _home(env)
+    out = []
+    try:
+        with open(os.path.join(home, OLD_HOME_DIR, "data_dir")) as f:
+            out.append(f.read().strip())
+    except OSError:
+        pass
+    out.append(os.path.join(home, OLD_HOME_DIR))
+    if os.path.basename(d) == "raindragon-forecast":
+        out.append(os.path.join(os.path.dirname(d), "raindragon-eta"))
+    return [p for p in out if p and os.path.abspath(p) != os.path.abspath(d)]
+
+
+def migrate_old_history(env: dict, d: str) -> None:
+    """Copy (never move) the old history and settings into a new data dir that
+    has none yet. Runs once: afterwards the new dir has a history.jsonl."""
+    if os.path.exists(os.path.join(d, "history.jsonl")):
+        return
+    for old in old_data_dirs(env, d):
+        src = os.path.join(old, "history.jsonl")
+        if not os.path.isfile(src):
+            continue
+        try:
+            for name in ("settings.json", "history.jsonl"):   # history last: it marks done
+                if os.path.isfile(os.path.join(old, name)) and not os.path.exists(os.path.join(d, name)):
+                    shutil.copyfile(os.path.join(old, name), os.path.join(d, name + ".tmp"))
+                    os.replace(os.path.join(d, name + ".tmp"), os.path.join(d, name))
+        except OSError:
+            pass
+        return
 
 
 def _safe(session_id: str) -> str:
@@ -130,16 +180,15 @@ def read_json(d: str, name: str) -> Optional[dict]:
         return None
 
 
-POINTER = os.path.join(".raindragon-eta", "data_dir")
+POINTER = os.path.join(HOME_DIR, "data_dir")
 
 
 def write_pointer(env: dict, d: str) -> None:
-    """Leave the data dir's path at ~/.raindragon-eta/data_dir for the live
+    """Leave the data dir's path at ~/.raindragon-forecast/data_dir for the live
     status-line mod (plugin/live/live.ts): a mod is told its plugin's root but
     not its data dir, which Claude Code names after the install id. Written
     only when it changed."""
-    home = env.get("HOME") or os.path.expanduser("~")
-    path = os.path.join(home, POINTER)
+    path = os.path.join(_home(env), POINTER)
     try:
         with open(path) as f:
             if f.read().strip() == d:

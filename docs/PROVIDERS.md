@@ -11,7 +11,7 @@ not built yet.
 | Turn end | `Stop` (ok) / `StopFailure` (failed) hooks | last `[data-testid=assistant-message]` goes `data-is-streaming=true` → `false`; `failed-send-status-region` = failed; a `Stop…` button click = stopped (dropped) |
 | Reply length | not measured | words in the last assistant message (`innerText`, minus `.sr-only`) |
 | "Similar" | prompt-size bucket + transcript-bytes bucket + effort level, falling back to broader groups until 8 turns (`predict.py`) | prompt-size bucket + on-screen conversation chars bucket + model-selector label (`lib/predict.js`) |
-| History | `~/.claude/plugins/data/raindragon-eta*/` text file per turn, cap 1,000, last 300 used | `chrome.storage.local.history`, cap 1,000, last 300 used |
+| History | `~/.claude/plugins/data/forecast*/` text file per turn, cap 1,000, last 300 used | `chrome.storage.local.history`, cap 1,000, last 300 used |
 | Incident | `status.claude.com/api/v2/summary.json`, Claude Code + Claude API components, MAJOR only (`status.py`) | same URL via `background.js`, claude.ai + Claude API components |
 | UI | `systemMessage` (user-only) + live status-line mod (`hooks/live.ts`) | shadow-DOM pill above the composer (`lib/pill.js`) |
 
@@ -112,7 +112,7 @@ there):
   Claude plugin already avoids.
 * No live clock: `tui.status_line` takes built-in item ids only, no
   command (openai/codex#17827 still open). So: range at prompt, optional
-  "took 1m" after. `notify` (argv JSON, `agent-turn-complete` only) is not
+  "done in 1:00" after. `notify` (argv JSON, `agent-turn-complete` only) is not
   needed.
 * Failures: the rollout log
   `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` has `event_msg` →
@@ -121,7 +121,7 @@ there):
   get Codex's own duration and mark errored turns failed.
 
 Plan: reuse `raindragon_eta_hook.py` with a `--host codex` flag: data dir
-`~/.codex/raindragon-eta/`, the similar-key is `model` + effort from
+`~/.codex/raindragon-forecast/`, the similar-key is `model` + effort from
 `turn_context`, status components "CLI"/"Codex API" (needs the
 `/proxy/status.openai.com` source, since summary.json omits the Codex
 group), install via `~/.codex/hooks.json`. Separate history from Claude

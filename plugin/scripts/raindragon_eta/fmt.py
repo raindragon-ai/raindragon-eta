@@ -21,9 +21,33 @@ def duration(seconds: float) -> str:
     return "%dh" % h if m == 0 else "%dh%02dm" % (h, m)
 
 
-def band_line(low: float, high: float, n: int, coverage: str, learning: bool = False) -> str:
-    share = "Half" if coverage == "50" else "8 in 10"
+def span(low: float, high: float) -> str:
     lo, hi = duration(low), duration(high)
-    span = lo if lo == hi else "%s–%s" % (lo, hi)
-    tail = "from %d turns, still learning" % n if learning else "from %d turns" % n
-    return "%s of your similar turns took %s (%s)" % (share, span, tail)
+    return lo if lo == hi else "%s–%s" % (lo, hi)
+
+
+def clock(seconds: float) -> str:
+    """A stopwatch reading, 1:12 or 1:02:05, for a time that really passed."""
+    s = max(0, int(seconds))
+    h, r = divmod(s, 3600)
+    m, ss = divmod(r, 60)
+    return "%d:%02d:%02d" % (h, m, ss) if h else "%d:%02d" % (m, ss)
+
+
+def band_line(low: float, high: float, n: int, coverage: str, learning: bool = False) -> str:
+    """Forecast 40s–3m · half of your similar turns (57)"""
+    share = "half" if coverage == "50" else "8 in 10"
+    tail = "%d, still learning" % n if learning else "%d" % n
+    return "Forecast %s · %s of your similar turns (%s)" % (span(low, high), share, tail)
+
+
+def done_line(dur: float, low, high) -> str:
+    """done in 1:12 · inside the forecast"""
+    took = "done in " + clock(dur)
+    if low is None or high is None:
+        return took
+    if dur > high:
+        return took + " · longer than the forecast (%s)" % span(low, high)
+    if dur < low:
+        return took + " · quicker than the forecast (%s)" % span(low, high)
+    return took + " · inside the forecast"

@@ -1,4 +1,4 @@
-/* RainDragon ETA on gemini.google.com (content script).
+/* RainDragon Forecast on gemini.google.com (content script).
  *
  * While you type: a band from your own similar past Gemini replies.
  * While Gemini replies: the elapsed time next to that band.
@@ -91,8 +91,7 @@
     if (!rec) return;                  // stopped or unknown: never saved
     save(rec);
     if (rec.ok && settings.showResult) {
-      let text = "Took " + T.duration(rec.dur) + ", " + T.wordsText(rec.words);
-      if (p.band) text += " · " + T.bandLine(p.band);
+      const text = T.doneLine(rec.dur, rec.words, p.band);
       lastResult = { text, until: Date.now() + 15000 };
     }
   }
@@ -114,24 +113,22 @@
   const pill = PILL.create();
 
   function message() {
-    const warn = incident ? PROV.label + ' status: "' + incident + '". Replies may be slower.' : "";
+    const warn = incident ? T.incidentLine(PROV.label) : "";
     if (pending) {
-      const parts = [PILL.clock(Date.now() - pending.turn.start)];
-      if (pending.band) parts.push(T.bandLine(pending.band));
-      return { text: parts.join(" · "), warn };
+      const live = T.liveLine(pending.band, Date.now() - pending.turn.start);
+      return { text: live.text, warn, long: live.long };
     }
     if (lastResult && Date.now() < lastResult.until) return { text: lastResult.text, warn };
     const pc = G.promptChars(document);
     if (pc === 0) return { text: "", warn };
     const b = T.predict(history, pc, contextChars(false), G.modelLabel(document), settings.band);
     if (b) return { text: T.bandLine(b), warn };
-    return { text: "Learning your pace: estimates start after " + T.MIN_READY +
-             " replies (" + T.learnedCount(history) + " so far)", warn };
+    return { text: T.learningLine(T.learnedCount(history)), warn };
   }
 
   function render() {
     const m = settings.enabled ? message() : { text: "", warn: "" };
-    pill.show(G.composer(document), m.text, m.warn);
+    pill.show(G.composer(document), m.text, m.warn, m.long);
   }
 
   load();

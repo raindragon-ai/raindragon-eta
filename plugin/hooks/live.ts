@@ -1,12 +1,13 @@
-// Live status line for RainDragon ETA: a running clock next to the band, e.g.
-//   ⏱ 0:42 · half took 40s–3m
+// Live status line for RainDragon Forecast: a running clock next to the range, e.g.
+//   ☊☋ 0:42 ▕──●─────▏ clear · 40s–3m
+// The bar runs from 0 to the top of the range and the dot is the clock.
 // in Claude Code's status line while a turn runs; cleared when it ends.
 //
 // Nothing is estimated here. The UserPromptSubmit hook (scripts/raindragon_eta_hook.py)
 // has already worked out the band before `turn.start` fires and saved it in
 // <data dir>/pending/<session>; this module only reads that file and ticks.
 // A mod is told its plugin's root but not its data dir, so the hook leaves the
-// data dir's path at ~/.raindragon-eta/data_dir.
+// data dir's path at ~/.raindragon-forecast/data_dir.
 //
 // Clients without mods ignore this file and still get the hook's one-line
 // message when the prompt is sent.
@@ -20,7 +21,10 @@ export type Pending = {
   learning?: boolean | null
   learned?: number         // good turns so far
   incident?: boolean
+  mark?: string            // what starts the line ("☊☋ ", "RD " or ""), from the hook
 }
+
+const BAR_CELLS = 8
 
 const MIN_READY = 10       // keep in step with raindragon_eta/predict.py
 
@@ -46,18 +50,24 @@ export function duration(seconds: number): string {
   return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, '0')}m`
 }
 
+export function bar(elapsedS: number, high: number): string {
+  const at = Math.min(BAR_CELLS - 1, Math.floor((elapsedS / Math.max(high, 1)) * BAR_CELLS))
+  return '▕' + '─'.repeat(at) + '●' + '─'.repeat(BAR_CELLS - 1 - at) + '▏'
+}
+
 export function line(p: Pending, elapsedMs: number): string {
-  const parts = [`⏱ ${clock(elapsedMs)}`]
+  const mark = p.mark ?? '☊☋ '
+  const s = elapsedMs / 1000
+  let text = `${mark}${clock(elapsedMs)}`
   if (p.low != null && p.high != null) {
-    const share = p.cov === '80' ? '8 in 10' : 'half'
     const lo = duration(p.low), hi = duration(p.high)
-    parts.push(`${share} took ${lo === hi ? lo : `${lo}–${hi}`}${p.learning ? ' (learning)' : ''}`)
-    if (elapsedMs / 1000 > p.high) parts.push('longer than usual')
+    const range = lo === hi ? lo : `${lo}–${hi}`
+    text += s > p.high ? ` running long · forecast was ${range}` : ` ${bar(s, p.high)} clear · ${range}`
   } else {
-    parts.push(`learning your pace (${p.learned ?? 0}/${MIN_READY})`)
+    text += ` · learning your pace (${p.learned ?? 0}/${MIN_READY})`
   }
-  if (p.incident) parts.push('Claude incident')
-  return parts.join(' · ')
+  if (p.incident) text += ' · storm warning'
+  return text
 }
 
 export function safeSession(id: string): string {
@@ -78,7 +88,7 @@ export const register: Register = on => {
       const mine = ++turn
       const home = await $.env.get('HOME')
       if (!home) return result
-      const dir = (await $.fs.read(`${home}/.raindragon-eta/data_dir`)).trim()
+      const dir = (await $.fs.read(`${home}/.raindragon-forecast/data_dir`)).trim()
       const sid = safeSession(await $.session.id())
       const p = JSON.parse(await $.fs.read(`${dir}/pending/${sid}`)) as Pending
       if (typeof p.start !== 'number') return result
