@@ -9,12 +9,12 @@ test('ticks a clock next to the range, with a bar up to its top', () => {
 })
 
 test('says when the turn runs past the range', () => {
-  expect(line(band, 200_000)).toBe('☊☋ 3:20 running long · forecast was 40s–3m')
+  expect(line(band, 200_000)).toBe('☊☋ 3:20 ▕────────▏● running long · forecast was 40s–3m')
 })
 
 test('uses the mark the hook chose', () => {
   expect(line({ ...band, mark: 'RD ' }, 0)).toBe('RD 0:00 ▕●───────▏ clear · 40s–3m')
-  expect(line({ ...band, mark: '' }, 200_000)).toBe('3:20 running long · forecast was 40s–3m')
+  expect(line({ ...band, mark: '' }, 200_000)).toBe('3:20 ▕────────▏● running long · forecast was 40s–3m')
 })
 
 test('before any range, counts toward the first one', () => {

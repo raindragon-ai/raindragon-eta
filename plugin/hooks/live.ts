@@ -55,6 +55,11 @@ export function bar(elapsedS: number, high: number): string {
   return '▕' + '─'.repeat(at) + '●' + '─'.repeat(BAR_CELLS - 1 - at) + '▏'
 }
 
+// Past the top of the range: the bar is full and the dot sits just outside it.
+export function fullBar(): string {
+  return '▕' + '─'.repeat(BAR_CELLS) + '▏●'
+}
+
 export function line(p: Pending, elapsedMs: number): string {
   const mark = p.mark ?? '☊☋ '
   const s = elapsedMs / 1000
@@ -62,7 +67,7 @@ export function line(p: Pending, elapsedMs: number): string {
   if (p.low != null && p.high != null) {
     const lo = duration(p.low), hi = duration(p.high)
     const range = lo === hi ? lo : `${lo}–${hi}`
-    text += s > p.high ? ` running long · forecast was ${range}` : ` ${bar(s, p.high)} clear · ${range}`
+    text += s > p.high ? ` ${fullBar()} running long · forecast was ${range}` : ` ${bar(s, p.high)} clear · ${range}`
   } else {
     text += ` · learning your pace (${p.learned ?? 0}/${MIN_READY})`
   }

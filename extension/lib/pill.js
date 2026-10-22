@@ -22,7 +22,7 @@
       'padding:3px 10px;border-radius:999px;pointer-events:none;' +
       'background:rgba(240,238,230,.95);color:#3d3929;border:1px solid rgba(0,0,0,.08);' +
       'white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
-      '.logo{width:14px;height:14px;vertical-align:-2px;margin-right:6px}' +
+      '.logo{width:20px;height:20px;vertical-align:-5px;margin-right:6px}b{font-weight:600}' +
       '.warn{color:#b91c1c}.long{color:#a16207}' +
       '@media (prefers-color-scheme:dark){.pill{background:rgba(48,48,46,.95);color:#e8e6dc;' +
       'border-color:rgba(255,255,255,.1)}.warn{color:#fca5a5}.long{color:#fcd34d}}' +
@@ -49,7 +49,15 @@
       if (text) {
         const t = document.createElement("span");
         if (long) t.className = "long";
-        t.textContent = text;
+        // The name that opens the line ("Forecast 20s–1m …") is bold, as in the brand preview.
+        const name = /^([A-Za-z]+)( .*)$/.exec(text);
+        if (name) {
+          const b = document.createElement("b");
+          b.textContent = name[1];
+          t.append(b, name[2]);
+        } else {
+          t.textContent = text;
+        }
         pill.appendChild(t);
       }
       if (warn) {
@@ -60,7 +68,7 @@
       }
       const r = box.getBoundingClientRect();
       pill.style.left = Math.max(8, r.left + 12) + "px";
-      pill.style.top = Math.max(4, r.top - 26) + "px";
+      pill.style.top = Math.max(4, r.top - 32) + "px";
       pill.hidden = false;
     }
     return { show };

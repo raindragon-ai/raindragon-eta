@@ -53,7 +53,7 @@ The dot moves along the bar as the clock runs. If the turn takes longer than
 the range:
 
 ```
-☊☋ 3:20 running long · forecast was 40s–3m
+☊☋ 3:20 ▕────────▏● running long · forecast was 40s–3m
 ```
 
 If Claude has a major incident:
