@@ -1,167 +1,243 @@
-# RainDragon ETA
+<p align="center"><img src="plugin/assets/logo.png" alt="RainDragon logo" width="96"></p>
 
-How long turns like this one usually take you, as a range from your own
-history, and a heads-up when Claude (or, on chatgpt.com, ChatGPT; on
-gemini.google.com, Gemini) has a major incident.
+# RainDragon Forecast
 
-Made by [RainDragon AI](https://inference.raindragon.ai/?utm_source=raindragon-eta&utm_medium=readme).
+**How long will Claude take?** Forecast tells you, from your own past turns.
 
-| Surface | Folder | Version |
-| :- | :- | :- |
-| Claude Code plugin | `plugin/` | 0.2.0 |
-| Chrome extension for claude.ai, chatgpt.com and gemini.google.com | `extension/` | 0.2.0 |
-| Codex CLI and Gemini CLI hooks (same script as the plugin, untested live) | `plugin/scripts/` | 0.2.0 |
+When you send a prompt, Forecast shows how long turns like it usually take
+*you*, as a range. While Claude works, a small clock shows how far along you
+are. If Claude has a major outage, you get a storm warning, so you know a slow
+turn is not your fault.
 
-See [CLAIMS.md](CLAIMS.md) for what we say about it and what we do not, and
-[PRIVACY.md](PRIVACY.md) for what it stores.
+It works in Claude Code and, with the Chrome extension, on claude.ai,
+chatgpt.com and gemini.google.com. It learns from your own history only, and
+that history stays on your computer.
 
-## What you see
+☊☋ are old astronomers' symbols for the Dragon's Head and Tail. You'll see
+them at the start of every Forecast line.
 
-In Claude Code, when you send a prompt:
+Made by [RainDragon AI](https://inference.raindragon.ai/?utm_source=raindragon-forecast&utm_medium=readme).
 
-```
-RainDragon ETA: Half of your similar turns took 40s–3m (from 57 turns)
-```
+## Why a range, not a single number
 
-On Claude Code versions that support plugin mods, the status line also shows
-a live clock next to the range while the turn runs, cleared when it ends:
-
-```
-⏱ 0:42 · half took 40s–3m
-```
-
-with "longer than usual" once a turn runs past the range. Older versions get
-the message above only.
-
-On claude.ai, just above the message box, for both time and length:
+Nobody can say exactly how long a turn will take: the same request can take
+20 seconds one time and 2 minutes the next. So Forecast does not guess one
+number. It looks at your past turns that were like this one and shows the
+range that the middle half of them fell in:
 
 ```
-RainDragon ETA · Half of your similar replies took 20s–1m, 300–800 words (from 24)
+☊☋ Forecast 40s–3m · half of your similar turns (57)
 ```
 
-and a running clock while Claude replies. chatgpt.com shows the same pill
-above its message box, from a separate ChatGPT history that starts at zero
-(the first-run table below applies to it on its own). gemini.google.com
-works the same way, from its own Gemini history; it is **untested on the live
-site** so far (see [docs/PROVIDERS.md](docs/PROVIDERS.md)) and records nothing
-when it cannot read the page. It is a **range**, never a single
-number: about half of your turns land inside the middle-half range.
+That means: of your 57 similar turns, half took between 40 seconds and 3
+minutes. About half of your future turns should land inside the range too,
+and you can check that any time with `/forecast:stats`.
 
-**First run.** It has nothing to go on until it has seen your turns:
+## What you'll see
 
-| Your good turns so far | What it shows |
+### In Claude Code
+
+When you send a prompt:
+
+```
+☊☋ Forecast 40s–3m · half of your similar turns (57)
+```
+
+While Claude works, at the bottom of the screen (newer Claude Code versions):
+
+```
+☊☋ 0:42 ▕──●─────▏ clear · 40s–3m
+```
+
+The dot moves along the bar as the clock runs. If the turn takes longer than
+the range:
+
+```
+☊☋ 3:20 running long · forecast was 40s–3m
+```
+
+If Claude has a major incident:
+
+```
+☊☋ Storm warning: Claude has a major incident. Expect slower turns.
+```
+
+### On claude.ai, chatgpt.com and gemini.google.com
+
+A small bar just above the message box, with the RainDragon logo:
+
+```
+[logo] Forecast 20s–1m · 300–800 words · 0:12
+```
+
+It shows how long the reply usually takes and how long it usually is, then a
+running clock. Each site keeps its own history, so ChatGPT replies never
+change your Claude forecast. gemini.google.com support is new and not yet
+tested on the live site (see [docs/PROVIDERS.md](docs/PROVIDERS.md)).
+
+### The first few turns
+
+Forecast needs some history before it can say anything useful:
+
+| Turns so far | What you see |
 | :- | :- |
-| 0–9 | "learning your pace", once per session (claude.ai: while you type) |
-| 10–29 | the wider 8-in-10 range, marked "still learning" |
-| 30+ | the range you chose (middle half by default) |
+| 0–9 | "RainDragon Forecast is learning your pace. Ranges start after 10 turns." (once per session) |
+| 10–29 | a wider range (8 in 10 of your similar turns), marked "still learning" |
+| 30 and up | the normal range (half of your similar turns), and one "Forecast has your pace" message |
 
-Failed turns, turns you stop, and turns during a major Claude incident are
-never counted. Minor and "degraded" periods are not flagged: they did not
-slow turns down when measured.
+Turns that fail, turns you stop, and turns during a major Claude incident are
+left out, so they never stretch your range.
 
 ## Install
 
-### Claude Code plugin
+### Claude Code
 
-Needs `python3` on your PATH. No other dependencies.
+You need `python3` installed. Nothing else.
 
 ```bash
-claude plugin marketplace add <repo URL or path>
-claude plugin install raindragon-eta@raindragon
+claude plugin marketplace add raindragon-ai/raindragon-forecast
+claude plugin install forecast@raindragon
 ```
 
-Or for one session from a checkout: `claude --plugin-dir plugin/`.
+To try it for one session from a copy of this repository instead:
+`claude --plugin-dir plugin/`.
 
-Options (`/plugin configure raindragon-eta@raindragon`): **Enabled**, band width
-`50` or `80`, show the actual time after each turn, check Claude status.
+Commands you can type:
 
-Commands:
-
-* `/raindragon-eta:eval`: how often the range held on your own past turns.
-* `/raindragon-eta:doctor`: version, settings and counts, for a bug report. It holds
-  no prompts, file names or session ids.
+* `/forecast:stats`: how often the range held on your own turns, your typical
+  turn and your longest turn.
+* `/forecast:doctor`: version, settings and counts, to paste into a bug
+  report. It never includes your prompts, file names or session ids.
 
 ### Chrome extension
 
-1. Download `raindragon-eta-extension-<version>.zip` from the release and unzip it.
+1. Download `raindragon-forecast-extension-<version>.zip` from the
+   [releases page](https://github.com/raindragon-ai/raindragon-forecast/releases) and unzip it.
 2. Open `chrome://extensions`, turn on **Developer mode**, click **Load
-   unpacked** and pick the unzipped `raindragon-eta-extension` folder.
+   unpacked** and pick the unzipped folder.
 3. Open claude.ai, chatgpt.com or gemini.google.com and start typing.
-
-Options (Extensions → RainDragon ETA → Details → Extension options): **On**, band
-width, show the actual time and length after each reply, check Claude,
-ChatGPT and Gemini status, how often the range held (per site), **Copy
-diagnostics**, **Clear my history** (all sites).
 
 ### Codex CLI and Gemini CLI
 
-The plugin's hook script also runs as a hook in OpenAI's Codex CLI and
-Google's Gemini CLI, with a separate history for each. Clone this repository
-and point the CLI's hooks at
-`plugin/scripts/raindragon_eta_hook.py <event> --host codex|gemini`.
-[docs/INSTALL_CLI.md](docs/INSTALL_CLI.md) has the exact `~/.codex/hooks.json`
-(or `config.toml`) and `~/.gemini/settings.json` entries, Codex's one-time
-trust step in `/hooks`, and Gemini's `tools.enableHooks` gate on 0.22.x.
+The same script also works with OpenAI's Codex CLI and Google's Gemini CLI.
+You get the range when you send a prompt, but no live clock. Setup steps are
+in [docs/INSTALL_CLI.md](docs/INSTALL_CLI.md). This has been tested with
+sample data only, not yet with a signed-in Codex or Gemini CLI.
 
-There is no live clock in either CLI (neither status line runs a command):
-you get the range when you send a prompt. Codex turns get no incident
-warning; Gemini turns are flagged only during an open Gemini OUTAGE on
-Google's Workspace status dashboard. Built and tested with synthetic hook
-payloads; not yet run against a signed-in Codex or Gemini CLI.
+### Check a download
 
-### Verify a download
-
-Each release has a `SHA256SUMS` file. In the folder with the zips:
+Each release has a `SHA256SUMS` file. In the folder with the zips, run:
 
 ```bash
 sha256sum -c SHA256SUMS        # Linux
 shasum -a 256 -c SHA256SUMS    # macOS
 ```
 
-Both lines must say `OK`. The zips are reproducible: `python3 release.py`
-on the tagged commit builds the same bytes.
+Every line must say `OK`.
+
+## Upgrading from RainDragon ETA
+
+RainDragon Forecast used to be called RainDragon ETA. To switch:
+
+```bash
+claude plugin uninstall raindragon-eta@raindragon
+claude plugin install forecast@raindragon
+```
+
+**Your history comes with you.** The first time Forecast runs, it copies your
+old ETA history across, so it does not start learning from zero. Your old
+files are left where they were. Delete them once you're happy (see below).
+
+The commands are now `/forecast:stats` (was `/raindragon-eta:eval`) and
+`/forecast:doctor` (was `/raindragon-eta:doctor`). `RAINDRAGON_ETA_OFF=1`
+still turns it off, but please use `RAINDRAGON_FORECAST_OFF=1` from now on.
+
+For the Chrome extension, remove the old one on `chrome://extensions` and load
+the new one. Removing the old extension deletes its history, because
+Chrome stores the history inside the extension.
+
+## Settings
+
+**Claude Code:** run `/plugin configure forecast@raindragon`.
+
+| Setting | What it does | Default |
+| :- | :- | :- |
+| Enabled | Turn Forecast off without uninstalling it | on |
+| Range width | `50`: the middle half of your similar turns. `80`: the middle 8 in 10, wider but misses less often | `50` |
+| Show actual time | After each turn, say how long it really took and whether that was inside the forecast | off |
+| Check Claude status | Look at status.claude.com to warn you about major incidents | on |
+| Mark | `symbol` (☊☋), `RD` if your terminal shows ☊☋ as boxes, or `none` | `symbol` |
+
+**Chrome extension:** Extensions → RainDragon Forecast → Details → Extension
+options. The same settings, plus **Copy diagnostics** and **Clear my
+history**.
 
 ## Turn it off, or remove it
 
-| | Turn off (keeps history) | Remove completely |
+| | Turn off (keeps your history) | Remove completely |
 | :- | :- | :- |
-| Plugin | set **Enabled** off, or `export RAINDRAGON_ETA_OFF=1` | `claude plugin uninstall raindragon-eta@raindragon`, then delete `~/.claude/plugins/data/raindragon-eta*` and `~/.raindragon-eta` |
-| Codex / Gemini CLI | `"enabled": false` in `~/.codex/raindragon-eta/settings.json` or `~/.gemini/raindragon-eta/settings.json`, or `RAINDRAGON_ETA_OFF=1` | delete the hook entries, then `~/.codex/raindragon-eta` or `~/.gemini/raindragon-eta` |
-| Extension | untick **On** in its options | **Remove** on `chrome://extensions` (Chrome deletes its stored history with it) |
+| Claude Code | set **Enabled** off, or `export RAINDRAGON_FORECAST_OFF=1` | `claude plugin uninstall forecast@raindragon`, then delete `~/.claude/plugins/data/forecast*` and `~/.raindragon-forecast` |
+| Codex / Gemini CLI | `"enabled": false` in `~/.codex/raindragon-forecast/settings.json` or `~/.gemini/raindragon-forecast/settings.json` | delete the hook entries, then `~/.codex/raindragon-forecast` or `~/.gemini/raindragon-forecast` |
+| Extension | untick **On** in its options | **Remove** on `chrome://extensions` (this also deletes its history) |
+| Old RainDragon ETA files | | `~/.claude/plugins/data/raindragon-eta*`, `~/.raindragon-eta`, `~/.codex/raindragon-eta`, `~/.gemini/raindragon-eta` |
 
-Off means nothing is shown and nothing is recorded.
+When Forecast is off, it shows nothing and records nothing.
+
+## Your privacy
+
+Forecast keeps how long each turn took and rough size buckets (such as
+"short prompt"). It never stores your prompts, Claude's replies or file
+names, and none of it leaves your computer. The only thing it fetches from the
+internet is the public status page (status.claude.com, status.openai.com or
+Google's status dashboard), to warn you about incidents. Full details:
+[PRIVACY.md](PRIVACY.md). What we do and don't claim about it:
+[CLAIMS.md](CLAIMS.md).
 
 ## Report a bug
 
-Run `/raindragon-eta:doctor` (plugin) or **Copy diagnostics** (extension options)
-and paste the output into the report, with what you saw and what you
-expected. The output names the version, so we know which build you have.
+Run `/forecast:doctor` (Claude Code) or click **Copy diagnostics**
+(extension options), and paste the output into your report along with what
+you saw and what you expected.
 
-## How it works
+## Not made by Anthropic
+
+RainDragon Forecast is an independent project by RainDragon AI. It is not
+made, endorsed or supported by Anthropic.
+
+## How it works (for developers)
 
 Plugin: a `UserPromptSubmit` hook starts the clock and shows the range as a
 user-only message (nothing is added to Claude's context); `Stop` saves the
-duration; `StopFailure` saves it as failed. Extension: reads claude.ai's own
-page markers (`assistant-message` with `data-is-streaming`) to see when a
-reply starts and ends; it never stores the text. On chatgpt.com it reads a
-copy of the page's own conversation stream to see when a reply starts and
-ends, how many words it has and which model answered; the text is counted
-and dropped, never stored. On gemini.google.com it reads page markers, as on
-claude.ai (the stop button and the newest reply), and counts the reply's
-words in place. Each site keeps its own history. Codex CLI and Gemini CLI: the same script, run with `--host codex` or
-`--host gemini` from those CLIs' own hooks (`UserPromptSubmit`/`Stop`/
-`Interrupt`, and `BeforeAgent`/`AfterAgent`), with a separate history each.
-See [docs/PROVIDERS.md](docs/PROVIDERS.md) for how each surface measures a
-turn.
+duration; `StopFailure` saves it as failed. A plugin mod (`plugin/hooks/live.ts`)
+draws the live status line from the turn the hook saved.
+
+Extension: on claude.ai it reads the page's own markers (`assistant-message`
+with `data-is-streaming`) to see when a reply starts and ends. On chatgpt.com
+it reads a copy of the page's conversation stream for timing, word count and
+model. On gemini.google.com it reads page markers (the stop button and the
+newest reply). Text is counted and dropped, never stored.
+
+Codex CLI and Gemini CLI: the same script, run with `--host codex` or
+`--host gemini` from those CLIs' own hooks, with a separate history each.
+See [docs/PROVIDERS.md](docs/PROVIDERS.md) for how each one measures a turn.
 
 "Similar" narrows by prompt size, conversation size and effort or model, and
 falls back to broader groups until one has at least 8 turns. Only your most
-recent 300 good turns are used.
+recent 300 good turns are used. Some internal names (the
+`raindragon_eta` Python package, the hook script's file name) keep the old
+name, because they never appear on screen.
+
+| Part | Folder | Version |
+| :- | :- | :- |
+| Claude Code plugin | `plugin/` | 0.2.0 |
+| Chrome extension | `extension/` | 0.2.0 |
+| Codex CLI and Gemini CLI hooks | `plugin/scripts/` | 0.2.0 |
 
 ## Develop
 
 ```bash
 python3 -m pytest -q tests   # plugin
-node --test tests/           # extension (synthetic fixtures: chatgpt.com SSE in tests/fixtures/chatgpt/, gemini.google.com DOM in tests/fixtures/gemini/)
+node --test tests/           # extension (synthetic fixtures in tests/fixtures/)
+claude plugin test plugin/   # live status line
 python3 release.py           # dist/*.zip + dist/SHA256SUMS
 ```

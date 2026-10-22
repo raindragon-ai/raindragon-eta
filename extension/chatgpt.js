@@ -1,4 +1,4 @@
-/* RainDragon ETA on chatgpt.com (content script, isolated world).
+/* RainDragon Forecast on chatgpt.com (content script, isolated world).
  *
  * While you type: a band from your own similar past ChatGPT replies.
  * While ChatGPT replies: the elapsed time next to that band.
@@ -130,8 +130,7 @@
     }
     save(rec);
     if (ok && settings.showResult) {
-      let text = "Took " + T.duration(dur) + ", " + T.wordsText(rec.words);
-      if (p.band) text += " · " + T.bandLine(p.band);
+      const text = T.doneLine(dur, rec.words, p.band);
       lastResult = { text, until: Date.now() + 15000 };
     }
   }
@@ -155,27 +154,25 @@
   const pill = PILL.create();
 
   function message() {
-    const warn = incident ? PROV.label + ' status: "' + incident + '". Replies may be slower.' : "";
+    const warn = incident ? T.incidentLine(PROV.label) : "";
     if (pending) {
       if (Date.now() - pending.start > MAX_TURN_MS) { pending = null; return { text: "", warn }; }
-      const parts = [PILL.clock(Date.now() - pending.start)];
-      if (pending.band) parts.push(T.bandLine(pending.band));
-      return { text: parts.join(" · "), warn };
+      const live = T.liveLine(pending.band, Date.now() - pending.start);
+      return { text: live.text, warn, long: live.long };
     }
     if (lastResult && Date.now() < lastResult.until) return { text: lastResult.text, warn };
     const pc = promptChars();
     if (pc === 0) return { text: "", warn };
     const b = T.predict(history, pc, contextChars(false), lastModel, settings.band);
     if (b) return { text: T.bandLine(b), warn };
-    return { text: "Learning your pace: estimates start after " + T.MIN_READY +
-             " replies (" + T.learnedCount(history) + " so far)", warn };
+    return { text: T.learningLine(T.learnedCount(history)), warn };
   }
 
   function render() {
     const input = $(SEL.input);
     const box = input && (input.closest("form") || input);
     const m = settings.enabled ? message() : { text: "", warn: "" };
-    pill.show(box, m.text, m.warn);
+    pill.show(box, m.text, m.warn, m.long);
   }
 
   load();

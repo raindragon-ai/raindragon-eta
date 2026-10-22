@@ -14,14 +14,14 @@ function pct(x) { return Math.round(x * 100) + "%"; }
 function evalLine(h, band) {
   const good = T.learnedCount(h);
   const e = T.evaluate(h, band);
-  if (!e.scored) return "accuracy check: not enough replies yet (" + good + " of " + T.MIN_READY + ").";
+  if (!e.scored) return "not enough replies yet to check the forecast (" + good + " of " + T.MIN_READY + ").";
   const parts = Object.keys(e.byBand).sort().reverse().map((k) => {
     const b = e.byBand[k];
-    return pct(b.hits / b.scored) + " of " + b.scored + " landed in the " +
-      (k === "80" ? "8-in-10 band (target 80%)" : "middle-half band (target 50%)");
+    return pct(b.hits / b.scored) + " of " + b.scored + " finished inside the " +
+      (k === "80" ? "8-in-10 range (aim 80%)" : "middle-half range (aim 50%)");
   });
-  return "how often the band held on your own replies: " + parts.join("; ") +
-    ". Typical band: top is " + e.medianRatio.toFixed(1) + "x the bottom.";
+  return "how often the forecast held on your own replies: " + parts.join("; ") +
+    ". Typical range: the top is " + e.medianRatio.toFixed(1) + "x the bottom.";
 }
 
 function render() {
@@ -37,7 +37,7 @@ function render() {
     const h = state.histories[p.id] || [];
     const div = document.createElement("div");
     div.textContent = p.site + ": " + h.length + " replies saved on this device (" + T.learnedCount(h) +
-      " used for estimates; durations and word counts only); " + evalLine(h, s.band);
+      " used for forecasts; durations and word counts only); " + evalLine(h, s.band);
     $("count").appendChild(div);
   }
 }
@@ -55,7 +55,7 @@ function diagnostics() {
     };
   }
   return JSON.stringify({
-    name: "raindragon-eta-extension", version: T.VERSION, settings: state.settings,
+    name: "raindragon-forecast-extension", version: T.VERSION, settings: state.settings,
     sites: per,
     browser: navigator.userAgent.replace(/\s*\(.*?\)\s*/g, " ").trim(),
   }, null, 2);

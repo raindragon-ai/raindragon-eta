@@ -1,16 +1,28 @@
-# What we say about RainDragon ETA
+# What we say about RainDragon Forecast
 
 Everything written about the product (landing page, README, store listing,
 release notes, announcement) comes from this list. Each claim says how it is
 measured. If it cannot be measured, it does not go in.
 
-**Name:** RainDragon ETA (plugin id `raindragon-eta`).
+**Name:** RainDragon Forecast, "Forecast" on everyday lines (plugin id
+`forecast`, installed as `forecast@raindragon`). Formerly RainDragon ETA. The
+full name appears in three places only: the first message of a session while
+it is learning, the `/forecast:stats` header and the install listing.
+
+**Mark:** ☊☋ (U+260A U+260B, the Dragon's Head and Tail) starts every line.
+The `mark` setting swaps it for `RD` or nothing where a terminal font shows
+boxes. Red is for the storm (incident) warning only, yellow for "running
+long" only.
+
+**Not Anthropic:** RainDragon Forecast is an independent project by
+RainDragon AI. It is not made, endorsed or supported by Anthropic. Say so
+wherever the product is listed.
 
 **Made by:** RainDragon AI, with a link to inference.raindragon.ai, in three
-places only: `/raindragon-eta:doctor` output, the extension options page and
+places only: `/forecast:doctor` output, the extension options page and
 the README. Never inside an estimate or a status warning: the estimate is the
 product, and an ad in it would cost trust. Links carry
-`utm_source=raindragon-eta&utm_medium=<doctor|extension|readme>` so visits
+`utm_source=raindragon-forecast&utm_medium=<doctor|extension|readme>` so visits
 can be counted on the site; the tool itself sends nothing.
 
 **One line:** How long turns like this one usually take you, as an honest
@@ -21,7 +33,7 @@ range from your own history.
 1. **It shows a range, and the range is honest about its own size.**
    The middle-half range comes from your own similar past turns, so about
    half of your turns should land inside it.
-   *Measured:* `/raindragon-eta:eval` (plugin) or the extension's options page
+   *Measured:* `/forecast:stats` (plugin) or the extension's options page
    replays your history in order and reports how often the range held, next
    to how wide it was. Launch target: coverage within a few points of 50%
    (80% for the wide range), reported per user in the beta (RAI-332).
@@ -41,7 +53,7 @@ range from your own history.
 
 4. **Failures do not skew it.**
    Failed turns, stopped turns and turns during an incident are never used.
-   *Measured:* covered by tests; visible in `/raindragon-eta:doctor` counts.
+   *Measured:* covered by tests; visible in `/forecast:doctor` counts.
 
 5. **Your work stays on your machine.** See PRIVACY.md.
 
@@ -78,8 +90,8 @@ range from your own history.
    Gemini incidents.
 
 10. **In the Codex CLI and Gemini CLI it learns your pace in each CLI
-    separately.** Each CLI has its own history (`~/.codex/raindragon-eta/`,
-    `~/.gemini/raindragon-eta/`), never mixed with Claude Code's or each
+    separately.** Each CLI has its own history (`~/.codex/raindragon-forecast/`,
+    `~/.gemini/raindragon-forecast/`), never mixed with Claude Code's or each
     other's, and starts from zero with the same first-run rule (claim 2).
     Failed turns are excluded: in Codex, turns whose rollout log records an
     error; in Gemini, turns that end with an empty reply. Stopped turns are

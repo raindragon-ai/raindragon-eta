@@ -1,4 +1,4 @@
-/* RainDragon ETA for claude.ai, chatgpt.com and gemini.google.com: duration and length bands from the user's own past replies.
+/* RainDragon Forecast for claude.ai, chatgpt.com and gemini.google.com: duration and length bands from the user's own past replies.
  *
  * Same rules as the Claude Code plugin (plugin/scripts/raindragon_eta/predict.py):
  * a BAND (middle half by default) of similar past replies, never a single
@@ -166,12 +166,49 @@
     return lo === hi ? lo : lo + "–" + hi;
   }
 
+  // "Forecast 20s–1m · 300–800 words"
   function bandLine(p) {
-    const share = p.coverage === "80" ? "8 in 10" : "Half";
-    let s = share + " of your similar replies took " +
-      span(duration(p.dur.low), duration(p.dur.high));
-    if (p.words) s += ", " + wordsText(p.words.low, p.words.high);
-    return s + " (from " + p.n + (p.learning ? ", still learning)" : ")");
+    let s = "Forecast " + span(duration(p.dur.low), duration(p.dur.high));
+    if (p.words) s += " · " + wordsText(p.words.low, p.words.high);
+    return s + (p.learning ? " · still learning" : "");
+  }
+
+  // a stopwatch reading for time that really passed: 0:12, 1:02:05
+  function clock(ms) {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+    const ss = String(s % 60).padStart(2, "0");
+    return h > 0 ? h + ":" + String(m).padStart(2, "0") + ":" + ss : m + ":" + ss;
+  }
+
+  // While a reply runs. long: the clock has passed the top of the range.
+  function liveLine(band, elapsedMs) {
+    const c = clock(elapsedMs);
+    if (!band) return { text: c, long: false };
+    if (elapsedMs / 1000 > band.dur.high) {
+      return { text: c + " · running long · forecast was " +
+               span(duration(band.dur.low), duration(band.dur.high)), long: true };
+    }
+    return { text: bandLine(band) + " · " + c, long: false };
+  }
+
+  // "Done in 1:12, 450 words · inside the forecast"
+  function doneLine(dur, nWords, band) {
+    let s = "Done in " + clock(dur * 1000) + ", " + wordsText(nWords);
+    if (!band) return s;
+    const range = span(duration(band.dur.low), duration(band.dur.high));
+    if (dur > band.dur.high) return s + " · longer than the forecast (" + range + ")";
+    if (dur < band.dur.low) return s + " · quicker than the forecast (" + range + ")";
+    return s + " · inside the forecast";
+  }
+
+  function learningLine(n) {
+    return "Forecast is learning your pace. Ranges start after " + MIN_READY +
+      " replies (" + n + " so far).";
+  }
+
+  function incidentLine(label) {
+    return "Storm warning: " + label + " has a major incident. Replies may be slower.";
   }
 
   // ---- status.claude.com ----
@@ -268,7 +305,7 @@
   const api = {
     VERSION, MIN_READY, CONFIDENT, MIN_GROUP, RECENT, BANDS,
     promptBucket, contextBucket, modelKey, quantile, usable, predict, evaluate, learnedCount,
-    duration, words, wordsText, bandLine, incidentFromSummary, incidentFromGoogle, WEB_COMPONENTS, PROVIDERS,
+    duration, words, wordsText, bandLine, clock, liveLine, doneLine, learningLine, incidentLine, incidentFromSummary, incidentFromGoogle, WEB_COMPONENTS, PROVIDERS,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.RainDragonEta = api;

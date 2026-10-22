@@ -88,7 +88,7 @@ SOURCES = {
 
 
 def _fetch(url: str) -> dict:
-    req = urllib.request.Request(url, headers={"User-Agent": "raindragon-eta"})
+    req = urllib.request.Request(url, headers={"User-Agent": "raindragon-forecast"})
     with urllib.request.urlopen(req, timeout=TIMEOUT_SECONDS) as resp:
         return json.loads(resp.read().decode("utf-8"))
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hook entry point: raindragon-eta <event> [--host claude|codex|gemini].
+"""RainDragon Forecast hook entry point: <event> [--host claude|codex|gemini].
 
 Claude Code (default host; plugin hooks/hooks.json):
 
@@ -25,10 +25,13 @@ Also run by hand (or via the plugin's slash commands):
                     into a bug report
   refresh-status    fetch status.claude.com into the cache; started detached
                     by the prompt hook, which never waits on the network
-  eval              how often your band held on your own history (coverage)
-                    and how wide it was, replayed in order
+  stats             plain-text summary for /forecast:stats: how often the
+                    range held, typical and longest turn
+  eval              the same measurement as JSON (coverage and band width),
+                    replayed in order
 
-Kill switch: the plugin option "enabled" (in /config) or RAINDRAGON_ETA_OFF=1.
+Kill switch: the plugin option "enabled" (in /config) or RAINDRAGON_FORECAST_OFF=1
+(the old RAINDRAGON_ETA_OFF=1 still works).
 Off means nothing is shown and nothing is recorded.
 
 Contract with Claude Code:
@@ -50,11 +53,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from raindragon_eta import __version__, fmt, hosts, predict, status, store  # noqa: E402
 
-PREFIX = "RainDragon ETA: "
+NAME = "RainDragon Forecast"
+#: The mark that starts every line: the Dragon's Head and Tail symbols. The
+#: "mark" option swaps it for plain letters where a terminal font shows boxes.
+MARKS = {"symbol": "\u260a\u260b ", "rd": "RD ", "none": ""}
 #: Who makes it. Named, with a link, in doctor output, the extension options page
 #: and the README only -- never inside an estimate (CLAIMS.md, "Made by").
 MADE_BY = "RainDragon AI"
-HOMEPAGE = "https://inference.raindragon.ai/?utm_source=raindragon-eta&utm_medium=doctor"
+HOMEPAGE = "https://inference.raindragon.ai/?utm_source=raindragon-forecast&utm_medium=doctor"
 MAX_TURN_SECONDS = 6 * 3600   # longer than this is a turn left open, not a duration
 
 
@@ -66,9 +72,15 @@ def _flag(env: dict, key: str, default: bool) -> bool:
 
 
 def enabled(env: dict) -> bool:
-    if str(env.get("RAINDRAGON_ETA_OFF") or "").strip().lower() in ("1", "true", "yes", "on"):
-        return False
+    for key in ("RAINDRAGON_FORECAST_OFF", "RAINDRAGON_ETA_OFF"):   # old name still works
+        if str(env.get(key) or "").strip().lower() in ("1", "true", "yes", "on"):
+            return False
     return _flag(env, "ENABLED", True)
+
+
+def mark(env: dict) -> str:
+    return MARKS.get(str(env.get("CLAUDE_PLUGIN_OPTION_MARK") or "symbol").strip().lower(),
+                     MARKS["symbol"])
 
 
 def _transcript_bytes(path) -> int:
@@ -81,15 +93,18 @@ def _transcript_bytes(path) -> int:
 def _settings(env: dict) -> dict:
     return {"enabled": enabled(env), "band": env.get("CLAUDE_PLUGIN_OPTION_BAND") or "50",
             "show_result": _flag(env, "SHOW_RESULT", False),
-            "check_status": _flag(env, "CHECK_STATUS", True)}
+            "check_status": _flag(env, "CHECK_STATUS", True),
+            "mark": env.get("CLAUDE_PLUGIN_OPTION_MARK") or "symbol"}
 
 
-OWN_COMMANDS = "/raindragon-eta:"   # our own slash commands are not turns worth timing
+#: Our own slash commands are not turns worth timing. The old prefix stays
+#: for anyone still on a RainDragon ETA install alongside.
+OWN_COMMANDS = ("/forecast:", "/raindragon-eta:")
 
 
 #: What a status warning names, per host.
-INCIDENT_TEXT = {"claude": "Claude status reports \"%s\". This turn may run slower than usual.",
-                 "gemini": "Google's status dashboard reports a Gemini outage. This turn may run slower than usual."}
+INCIDENT_TEXT = {"claude": "Storm warning: Claude has a major incident. Expect slower turns.",
+                 "gemini": "Storm warning: Google reports a Gemini outage. Expect slower turns."}
 
 
 def _settle_unfinished(d: str, sid: str, p: dict, host: str) -> None:
@@ -117,7 +132,7 @@ def on_prompt(inp: dict, env: dict, now: float, fetch=None, host: str = "claude"
         if old:
             _settle_unfinished(d, inp.get("session_id") or "", old, host)
     if (inp.get("prompt") or "").lstrip().startswith(OWN_COMMANDS):
-        # /raindragon-eta:doctor and :eval take a second and say nothing about
+        # /forecast:doctor and :stats take a second and say nothing about
         # the user's pace: no estimate, and no pending turn, so Stop records
         # nothing and the status-line clock does not start.
         store.pop_pending(d, inp.get("session_id") or "")
@@ -150,22 +165,32 @@ def on_prompt(inp: dict, env: dict, now: float, fetch=None, host: str = "claude"
         "low": band.low if band else None, "high": band.high if band else None,
         "n": band.n if band else None, "learning": bool(band.learning) if band else None,
         "learned": predict.learned_count(history),
+        "mark": mark(env),   # for the live status line, which gets no plugin options
     }
     if host == "codex" and inp.get("transcript_path"):
         # kept only to look up this turn's outcome if its Stop never comes
         pending["transcript_path"] = str(inp["transcript_path"])
     store.write_pending(d, sid, pending)
 
+    if not band or band.learning:
+        if store.read_json(d, "learned.json") is None:
+            store.write_json(d, "learned.json", {"said": False})
     lines = []
     if band:
         lines.append(fmt.band_line(band.low, band.high, band.n, band.coverage, band.learning))
+        if not band.learning and store.read_json(d, "learned.json") == {"said": False}:
+            # once ever, and only to someone who saw the learning phase (not a
+            # RainDragon ETA user whose copied history is already past it).
+            # Kept outside noted/, which is cleaned after 2 days.
+            store.write_json(d, "learned.json", {"said": True, "at": int(now)})
+            lines.append("Forecast has your pace (%d turns)." % predict.CONFIDENT
+                         + (" Ranges now show the middle half." if band.coverage == "50" else ""))
     elif store.mark_noted(d, sid):
-        lines.append("learning your pace. Estimates start after %d turns (%d so far)."
-                     % (predict.MIN_READY, predict.learned_count(history)))
+        lines.append("%s is learning your pace. Ranges start after %d turns."
+                     % (NAME, predict.MIN_READY))
     if incident:
-        text = INCIDENT_TEXT.get(host, INCIDENT_TEXT["claude"])
-        lines.append(text % incident if "%s" in text else text)
-    return PREFIX + " ".join(lines) if lines else ""
+        lines.append(INCIDENT_TEXT.get(host, INCIDENT_TEXT["claude"]))
+    return "\n".join(mark(env) + line for line in lines)
 
 
 def on_stop(inp: dict, env: dict, now: float, ok: bool, host: str = "claude",
@@ -186,11 +211,7 @@ def on_stop(inp: dict, env: dict, now: float, ok: bool, host: str = "claude",
         rec["error"] = error or inp.get("error_type") or "unknown"
     store.append_history(d, rec)
     if ok and _flag(env, "SHOW_RESULT", False):
-        took = "took " + fmt.duration(dur)
-        if p.get("low") is not None:
-            share = "half" if p.get("cov", "50") == "50" else "8 in 10"
-            took += " (%s of similar turns took %s–%s)" % (share, fmt.duration(p["low"]), fmt.duration(p["high"]))
-        return PREFIX + took
+        return mark(env) + fmt.done_line(dur, p.get("low"), p.get("high"))
     return ""
 
 
@@ -214,7 +235,7 @@ def doctor(env: dict, now: float, host: str = "claude") -> dict:
     # last prompt hook saw (None before the first prompt).
     seen = store.read_json(d, "settings_seen.json")
     return {
-        "name": "raindragon-eta", "version": __version__, "host": host,
+        "name": "raindragon-forecast", "version": __version__, "host": host,
         "settings": seen,
         "data_dir": d,
         "turns_recorded": len(h),
@@ -229,6 +250,29 @@ def doctor(env: dict, now: float, host: str = "claude") -> dict:
         "made_by": MADE_BY,
         "homepage": HOMEPAGE,
     }
+
+
+def stats_text(history: list, coverage: str, mk: str) -> str:
+    """The /forecast:stats screen. Plain text, so Claude can show it as is."""
+    good = predict.usable(history)
+    if len(good) < predict.MIN_READY:
+        return ("%s%s is still learning your pace: %d of %d turns so far.\n"
+                "Ranges start after %d turns." % (mk, NAME, len(good), predict.MIN_READY,
+                                                 predict.MIN_READY))
+    ev = predict.evaluate(history, coverage)
+    durs = sorted(r["dur"] for r in good)
+    rows = [("Typical turn", fmt.duration(predict.quantile(durs, 0.5))),
+            ("Longest turn", fmt.duration(durs[-1]))]
+    # score the range the user sees now: the wide one while learning
+    shown = coverage if len(good) >= predict.CONFIDENT else "80"
+    b = ev["by_band"].get(shown)
+    if b:
+        rows.insert(0, ("Inside the range", "%d%% of %d turn%s (aim %s%%)"
+                        % (round(b["coverage"] * 100), b["scored"],
+                           "" if b["scored"] == 1 else "s", shown)))
+    out = ["%s%s · your last %d turns" % (mk, NAME, len(good))]
+    out += ["  %-17s %s" % r for r in rows]
+    return "\n".join(out)
 
 
 def main(argv, stdin, stdout, env, now=None) -> int:
@@ -248,7 +292,7 @@ def main(argv, stdin, stdout, env, now=None) -> int:
         if len(argv) > 3 and argv[2] == "--data" and argv[3]:
             env = dict(env, CLAUDE_PLUGIN_DATA=argv[3])
             if host != "claude":
-                env["RAINDRAGON_ETA_DATA"] = argv[3]
+                env["RAINDRAGON_FORECAST_DATA"] = argv[3]
         env = hosts.data_dir_env(env, host)
         if event == "doctor":
             stdout.write(json.dumps(doctor(env, now, host), indent=2) + "\n")
@@ -257,6 +301,11 @@ def main(argv, stdin, stdout, env, now=None) -> int:
             src = status.SOURCES.get(host)
             if src:
                 status.refresh(store.data_dir(env), now, url=src[0])
+            return 0
+        if event == "stats":
+            d = store.data_dir(env)
+            cov = env.get("CLAUDE_PLUGIN_OPTION_BAND") or "50"
+            stdout.write(stats_text(store.read_history(d), cov, mark(env)) + "\n")
             return 0
         if event == "eval":
             d = store.data_dir(env)

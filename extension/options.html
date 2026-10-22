@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>RainDragon ETA options</title>
+<title>RainDragon Forecast options</title>
 <style>
   body { font: 14px/1.5 system-ui, sans-serif; margin: 24px; max-width: 560px; color: #222; background: #fff; }
   @media (prefers-color-scheme: dark) { body { color: #eee; background: #1f1f1e; } }
@@ -14,29 +14,34 @@
   #version { color: #777; font-size: 12px; }
   .maker { margin-top: 24px; color: #777; font-size: 12px; }
   .maker a { color: inherit; }
+  h2 { display: flex; align-items: center; gap: 10px; }
+  h2 img { width: 32px; height: 32px; }
+  .intro { color: #555; margin-top: -4px; }
+  @media (prefers-color-scheme: dark) { .intro { color: #aaa; } }
 </style>
 </head>
 <body>
-<h2>RainDragon ETA <span id="version"></span></h2>
+<h2><img src="icons/128.png" alt="">RainDragon Forecast <span id="version"></span></h2>
+<p class="intro">Forecast shows how long a reply usually takes you, as a range from your own past replies. Everything stays in this browser.</p>
 <label><input type="checkbox" id="enabled"> On</label>
-<div class="hint">Off hides the estimate and stops recording. Your history is kept.</div>
-<label>Band width
+<div class="hint">Off hides the forecast and stops recording. Your history is kept.</div>
+<label>Range width
   <select id="band">
-    <option value="50">Middle half of similar replies</option>
+    <option value="50">Middle half of your similar replies</option>
     <option value="80">Middle 8 in 10 (wider, misses less often)</option>
   </select>
 </label>
-<div class="hint">Until 30 replies the wider band is used and marked "still learning".</div>
-<label><input type="checkbox" id="showResult"> Show the actual time after each reply</label>
+<div class="hint">Until 30 replies the wider range is used and marked "still learning".</div>
+<label><input type="checkbox" id="showResult"> Show how long each reply really took</label>
 <label><input type="checkbox" id="checkStatus"> Check Claude, ChatGPT and Gemini status</label>
-<div class="hint">Reads status.claude.com (on claude.ai) and status.openai.com (on chatgpt.com) and Google's status dashboard, www.google.com/appsstatus (on gemini.google.com), every 2 minutes to warn during a major incident.</div>
+<div class="hint">Reads status.claude.com (on claude.ai) and status.openai.com (on chatgpt.com) and Google's status dashboard, www.google.com/appsstatus (on gemini.google.com), every 2 minutes, and shows a storm warning during a major incident.</div>
 <div class="box">
   <div id="count"></div>
   <div id="eval"></div>
 </div>
 <button id="copy">Copy diagnostics</button><button id="clear">Clear my history</button><span id="saved"></span>
 <div class="hint" style="margin-left:0">Clear removes the claude.ai, chatgpt.com and gemini.google.com histories. Diagnostics hold the version, settings and counts only: no prompts, replies or chat names.</div>
-<p class="maker">Made by <a href="https://inference.raindragon.ai/?utm_source=raindragon-eta&utm_medium=extension" target="_blank" rel="noopener">RainDragon AI</a></p>
+<p class="maker">RainDragon Forecast is an independent project by RainDragon AI. It is not made, endorsed or supported by Anthropic, OpenAI or Google.<br>Made by <a href="https://inference.raindragon.ai/?utm_source=raindragon-forecast&utm_medium=extension" target="_blank" rel="noopener">RainDragon AI</a></p>
 <script src="lib/predict.js"></script>
 <script src="options.js"></script>
 </body>

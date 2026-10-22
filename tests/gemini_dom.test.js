@@ -156,7 +156,7 @@ function contentScript(pg, stored = {}) {
       },
       runtime: { sendMessage: (m, cb) => cb({ incident: null }), lastError: null },
     },
-    RainDragonEtaPill: { create: () => ({ show: (box, text, warn) => shown.push({ box, text, warn }) }),
+    RainDragonEtaPill: { create: () => ({ show: (box, text, warn, long) => shown.push({ box, text, warn, long }) }),
                          clock: (ms) => String(Math.floor(ms / 1000)) },
   };
   ctx.self = ctx;
@@ -215,7 +215,7 @@ test("first run on Gemini starts from zero even with a long Claude history", () 
   const cs = contentScript(pg, { history: claude });
   pg.type("hello");
   cs.advance(250);
-  assert.match(cs.shown[cs.shown.length - 1].text, /^Learning your pace: .* \(0 so far\)$/);
+  assert.match(cs.shown[cs.shown.length - 1].text, /^Forecast is learning your pace\. .* \(0 so far\)\.$/);
   assert.equal(cs.shown[cs.shown.length - 1].box, pg.composer);
 });
 

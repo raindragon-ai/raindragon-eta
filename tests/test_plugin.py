@@ -10,6 +10,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "plugin", "scri
 import raindragon_eta_hook as hook  # noqa: E402
 from raindragon_eta import fmt, predict, status, store  # noqa: E402
 
+MARK = "\u260a\u260b "  # the Dragon's Head and Tail mark that starts every line
+
 
 def rec(dur, ok=True, incident=False, pb="short", cb="small", effort="high"):
     return {"t": 0, "dur": dur, "pb": pb, "cb": cb, "effort": effort, "ok": ok, "incident": incident}
@@ -71,7 +73,16 @@ def test_duration(s, want):
 
 
 def test_band_line_collapses_equal_ends():
-    assert "took 30s (" in fmt.band_line(30, 30, 12, "50")
+    assert fmt.band_line(30, 30, 12, "50") == "Forecast 30s · half of your similar turns (12)"
+    assert fmt.band_line(40, 180, 15, "80", learning=True) == \
+        "Forecast 40s–3m · 8 in 10 of your similar turns (15, still learning)"
+
+
+def test_done_line_says_where_the_turn_landed():
+    assert fmt.done_line(72, 40, 180) == "done in 1:12 · inside the forecast"
+    assert fmt.done_line(200, 40, 180) == "done in 3:20 · longer than the forecast (40s–3m)"
+    assert fmt.done_line(5, 40, 180) == "done in 0:05 · quicker than the forecast (40s–3m)"
+    assert fmt.done_line(75, None, None) == "done in 1:15"
 
 
 # ---------- status ----------
@@ -169,8 +180,8 @@ def prompt(i, sid="s1"):
 
 def test_first_run_says_learning_once_then_nothing(env):
     out = run("prompt", prompt(1), env, 1000)
-    assert out["systemMessage"].startswith("RainDragon ETA: learning your pace")
-    assert "(0 so far)" in out["systemMessage"]
+    assert out["systemMessage"] == \
+        MARK + "RainDragon Forecast is learning your pace. Ranges start after 10 turns."
     run("stop", {"session_id": "s1", "prompt_id": "p1"}, env, 1030)
     assert run("prompt", prompt(2), env, 2000) is None  # no repeat in the same session
 
@@ -184,8 +195,8 @@ def test_band_appears_after_enough_turns_and_only_systemmessage(env):
     out = run("prompt", prompt(99), env, t)
     assert set(out) == {"systemMessage"}
     # under CONFIDENT turns: the wide band, labelled, whatever the setting
-    assert out["systemMessage"].startswith("RainDragon ETA: 8 in 10 of your similar turns took")
-    assert "from 10 turns, still learning" in out["systemMessage"]
+    assert out["systemMessage"].startswith(MARK + "Forecast ")
+    assert "· 8 in 10 of your similar turns (10, still learning)" in out["systemMessage"]
 
 
 def test_failure_is_recorded_but_excluded(env):
@@ -222,11 +233,11 @@ def test_show_result(env):
     env = dict(env, CLAUDE_PLUGIN_OPTION_SHOW_RESULT="true")
     run("prompt", prompt(1), env, 0)
     out = run("stop", {"session_id": "s1", "prompt_id": "p1"}, env, 75)
-    assert out == {"systemMessage": "RainDragon ETA: took 1m"}
+    assert out == {"systemMessage": MARK + "done in 1:15"}
 
 
-@pytest.mark.parametrize("cov,share", [("50", "half"), ("80", "8 in 10")])
-def test_show_result_names_the_chosen_band(env, cov, share):
+@pytest.mark.parametrize("cov", ["50", "80"])
+def test_show_result_says_where_the_turn_landed(env, cov):
     env = dict(env, CLAUDE_PLUGIN_OPTION_SHOW_RESULT="true", CLAUDE_PLUGIN_OPTION_BAND=cov)
     t = 0
     for i in range(predict.CONFIDENT):
@@ -234,8 +245,8 @@ def test_show_result_names_the_chosen_band(env, cov, share):
         run("stop", {"session_id": "s1", "prompt_id": "p%d" % i}, env, t + 40 + i)
         t += 1000
     run("prompt", prompt(99), env, t)
-    out = run("stop", {"session_id": "s1", "prompt_id": "p99"}, env, t + 45)
-    assert out["systemMessage"].startswith("RainDragon ETA: took 45s (%s of similar turns took " % share)
+    out = run("stop", {"session_id": "s1", "prompt_id": "p99"}, env, t + 50)
+    assert out["systemMessage"] == MARK + "done in 0:50 · inside the forecast"
 
 
 def test_incident_turn_flagged_and_excluded(env, monkeypatch):
@@ -245,10 +256,10 @@ def test_incident_turn_flagged_and_excluded(env, monkeypatch):
     # the background refresh, run inline here: the FIRST prompt only starts it
     monkeypatch.setattr(status, "_spawn_refresh", lambda d: status.refresh(d, now=0))
     out = run("prompt", prompt(1), env, 0)
-    assert "Claude status" not in out["systemMessage"]
+    assert "Storm warning" not in out["systemMessage"]
     run("stop", {"session_id": "s1", "prompt_id": "p1"}, env, 30)
     out = run("prompt", prompt(2), env, 40)
-    assert "Claude status reports \"Claude Code: major outage\"" in out["systemMessage"]
+    assert MARK + "Storm warning: Claude has a major incident. Expect slower turns." in out["systemMessage"]
     run("stop", {"session_id": "s1", "prompt_id": "p2"}, env, 900)
     h = store.read_history(env["CLAUDE_PLUGIN_DATA"])
     assert [r["incident"] for r in h] == [False, True]
@@ -292,7 +303,8 @@ def test_learning_band_is_wide_then_narrows_at_confident(env):
 def test_ready_band_line_has_no_learning_label(env):
     t = _turns(env, predict.CONFIDENT)
     out = run("prompt", prompt(99), env, t)
-    assert out["systemMessage"].startswith("RainDragon ETA: Half of your similar turns took")
+    assert out["systemMessage"].startswith(MARK + "Forecast ")
+    assert "· half of your similar turns" in out["systemMessage"]
     assert "still learning" not in out["systemMessage"]
 
 
@@ -314,7 +326,8 @@ def test_evaluate_on_empty_history():
     assert predict.evaluate([])["coverage"] is None
 
 
-@pytest.mark.parametrize("off", [{"CLAUDE_PLUGIN_OPTION_ENABLED": "false"}, {"RAINDRAGON_ETA_OFF": "1"}])
+@pytest.mark.parametrize("off", [{"CLAUDE_PLUGIN_OPTION_ENABLED": "false"}, {"RAINDRAGON_FORECAST_OFF": "1"},
+                                 {"RAINDRAGON_ETA_OFF": "1"}])
 def test_kill_switch_shows_and_records_nothing(env, off):
     env = dict(env, **off)
     assert run("prompt", prompt(1), env, 0) is None
@@ -333,7 +346,7 @@ def test_doctor_reports_counts_never_content(env):
     assert d["settings"]["enabled"] is True and d["settings"]["band"] == "50"
     assert "SECRET" not in out.getvalue() and "s1" not in out.getvalue()
     assert d["made_by"] == "RainDragon AI"
-    assert d["homepage"].startswith("https://inference.raindragon.ai/?utm_source=raindragon-eta")
+    assert d["homepage"].startswith("https://inference.raindragon.ai/?utm_source=raindragon-forecast")
 
 
 def test_estimate_never_carries_the_maker_link(env):
@@ -369,7 +382,7 @@ def test_commands_pass_the_data_dir(env, tmp_path):
 
 def test_prompt_leaves_pointer_and_live_fields_for_the_mod(env):
     run("prompt", prompt(1), env, 0)
-    ptr = os.path.join(env["HOME"], ".raindragon-eta", "data_dir")
+    ptr = os.path.join(env["HOME"], ".raindragon-forecast", "data_dir")
     assert open(ptr).read() == env["CLAUDE_PLUGIN_DATA"]
     p = json.load(open(os.path.join(env["CLAUDE_PLUGIN_DATA"], "pending", "s1")))
     assert p["start"] == 0 and p["learned"] == 0 and p["low"] is None
@@ -414,7 +427,7 @@ def test_refresh_status_command_writes_the_cache(env, monkeypatch):
     assert os.path.exists(os.path.join(env["CLAUDE_PLUGIN_DATA"], "status_cache.json"))
 
 
-@pytest.mark.parametrize("cmd", ["/raindragon-eta:doctor", "  /raindragon-eta:eval"])
+@pytest.mark.parametrize("cmd", ["/forecast:doctor", "  /forecast:stats", "/raindragon-eta:eval"])
 def test_own_commands_are_not_timed(env, cmd):
     _turns(env, predict.MIN_READY)
     before = len(store.read_history(env["CLAUDE_PLUGIN_DATA"]))
@@ -428,3 +441,96 @@ def test_other_slash_commands_are_still_timed(env):
     run("prompt", dict(prompt(1), prompt="/review this file"), env, 0)
     run("stop", {"session_id": "s1", "prompt_id": "p1"}, env, 20)
     assert len(store.read_history(env["CLAUDE_PLUGIN_DATA"])) == 1
+
+
+# ---- rename from RainDragon ETA to RainDragon Forecast ----
+
+def _old_install(home, data):
+    """What a RainDragon ETA install leaves behind: its data dir with history,
+    and the pointer to it at ~/.raindragon-eta/data_dir."""
+    os.makedirs(data)
+    with open(os.path.join(data, "history.jsonl"), "w") as f:
+        for _ in range(12):
+            f.write(json.dumps(rec(40)) + "\n")
+    os.makedirs(os.path.join(home, ".raindragon-eta"))
+    with open(os.path.join(home, ".raindragon-eta", "data_dir"), "w") as f:
+        f.write(data)
+
+
+def test_old_eta_history_is_copied_into_the_new_plugin(env, tmp_path):
+    old = str(tmp_path / "plugins" / "data" / "raindragon-eta-raindragon")
+    _old_install(env["HOME"], old)
+    out = run("prompt", prompt(1), env, 0)
+    # 12 old turns: a range on the very first prompt, no "learning" again
+    assert out["systemMessage"].startswith(MARK + "Forecast ")
+    assert len(store.read_history(env["CLAUDE_PLUGIN_DATA"])) == 12
+    assert len(store.read_history(old)) == 12   # copied, never moved
+
+
+def test_eta_user_past_learning_is_not_told_has_your_pace(env, tmp_path):
+    old = str(tmp_path / "old")
+    _old_install(env["HOME"], old)
+    with open(os.path.join(old, "history.jsonl"), "a") as f:
+        for _ in range(predict.CONFIDENT):
+            f.write(json.dumps(rec(40)) + "\n")
+    out = run("prompt", prompt(1), env, 0)["systemMessage"]
+    assert "has your pace" not in out and "\n" not in out
+
+
+def test_migration_runs_once_and_never_overwrites(env, tmp_path):
+    old = str(tmp_path / "old")
+    _old_install(env["HOME"], old)
+    _turns(env, 2)                              # first prompt copies 12, then 2 more
+    with open(os.path.join(old, "history.jsonl"), "a") as f:
+        f.write(json.dumps(rec(99)) + "\n")
+    run("prompt", prompt(9), env, 10**6)
+    assert len(store.read_history(env["CLAUDE_PLUGIN_DATA"])) == 14
+
+
+def test_codex_old_folder_and_settings_are_copied(tmp_path):
+    home = str(tmp_path / "home")
+    old = os.path.join(home, ".codex", "raindragon-eta")
+    os.makedirs(old)
+    with open(os.path.join(old, "history.jsonl"), "w") as f:
+        f.write(json.dumps(rec(40)) + "\n")
+    with open(os.path.join(old, "settings.json"), "w") as f:
+        json.dump({"mark": "rd"}, f)
+    env = {"HOME": home, "CLAUDE_PLUGIN_OPTION_CHECK_STATUS": "false"}
+    out = io.StringIO()
+    hook.main(["hook", "prompt", "--host", "codex"], io.StringIO(json.dumps(
+        {"session_id": "x", "turn_id": "t1", "prompt": "hi"})), out, env, now=0)
+    new = os.path.join(home, ".codex", "raindragon-forecast")
+    assert len(store.read_history(new)) == 1
+    assert json.loads(out.getvalue())["systemMessage"].startswith("RD RainDragon Forecast is learning")
+
+
+@pytest.mark.parametrize("mark,start", [("symbol", MARK), ("RD", "RD "), ("none", "RainDragon")])
+def test_mark_option(env, mark, start):
+    out = run("prompt", prompt(1), dict(env, CLAUDE_PLUGIN_OPTION_MARK=mark), 0)
+    assert out["systemMessage"].startswith(start)
+    p = json.load(open(os.path.join(env["CLAUDE_PLUGIN_DATA"], "pending", "s1")))
+    assert p["mark"] == start if mark != "none" else p["mark"] == ""
+
+
+def test_has_your_pace_is_said_once_ever(env):
+    t = _turns(env, predict.CONFIDENT)
+    out = run("prompt", prompt(99), env, t)["systemMessage"]
+    assert out.split("\n")[1] == MARK + "Forecast has your pace (30 turns). Ranges now show the middle half."
+    run("stop", {"session_id": "s1", "prompt_id": "p99"}, env, t + 40)
+    out = run("prompt", dict(prompt(100), session_id="s2"), env, t + 10**6)["systemMessage"]
+    assert "has your pace" not in out
+
+
+def _stats(env):
+    out = io.StringIO()
+    hook.main(["hook", "stats", "--data", env["CLAUDE_PLUGIN_DATA"]], io.StringIO(""), out, {}, now=0)
+    return out.getvalue()
+
+
+def test_stats_screen(env):
+    assert _stats(env).startswith(MARK + "RainDragon Forecast is still learning your pace: 0 of 10")
+    _turns(env, 40)
+    lines = _stats(env).splitlines()
+    assert lines[0] == MARK + "RainDragon Forecast · your last 40 turns"
+    assert lines[1].startswith("  Inside the range") and lines[1].endswith("of 10 turns (aim 50%)")
+    assert lines[2].split() == ["Typical", "turn", "1m"] and lines[3].split() == ["Longest", "turn", "1m"]

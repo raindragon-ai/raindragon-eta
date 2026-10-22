@@ -1,4 +1,4 @@
-/* RainDragon ETA on gemini.google.com: page markers and turn tracking.
+/* RainDragon Forecast on gemini.google.com: page markers and turn tracking.
  *
  * Gemini's own stream (StreamGenerate, length-prefixed positional JSON) is
  * undocumented and would break silently on any layout change, so this reads

@@ -8,9 +8,9 @@
   },
   "plugins": [
     {
-      "name": "raindragon-eta",
+      "name": "forecast",
       "source": "./plugin",
-      "description": "How long turns like this one usually take you, as a range from your own past turns, with a live clock in the status line."
+      "description": "RainDragon Forecast: how long your Claude Code turns usually take, as a range from your own past turns, with a live clock while Claude works."
     }
   ]
 }
