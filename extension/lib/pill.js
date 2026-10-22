@@ -1,7 +1,8 @@
 /* RainDragon Forecast: the small pill shown just above a chat site's message box.
  * Shared by the claude.ai and chatgpt.com content scripts. It lives in a closed
  * shadow root, ignores the pointer, and never changes the page's own elements.
- * It starts with the RainDragon logo, then the forecast. */
+ * It starts with the RainDragon dragon (icons/mark.png: the logo without its
+ * wordmark, which is unreadable at 20px), then the forecast. */
 (function (root) {
   "use strict";
 
@@ -33,7 +34,7 @@
       const img = document.createElement("img");
       img.className = "logo";
       img.alt = "RainDragon Forecast";
-      try { img.src = chrome.runtime.getURL("icons/32.png"); } catch (e) { return null; }
+      try { img.src = chrome.runtime.getURL("icons/mark.png"); } catch (e) { return null; }
       return img;
     }
 

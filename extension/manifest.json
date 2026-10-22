@@ -76,7 +76,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "icons/32.png"
+        "icons/32.png",
+        "icons/mark.png"
       ],
       "matches": [
         "https://claude.ai/*",
