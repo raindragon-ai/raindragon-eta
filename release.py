@@ -15,6 +15,14 @@ so anyone can rebuild and compare against the published SHA256SUMS.
 and colours) for A/B user testing of the name. Only user-facing text changes;
 it installs next to the Forecast build and keeps its own history.
 
+    python3 release.py --store    -> also dist/raindragon-forecast-store-<v>.zip
+
+--store builds the Chrome Web Store upload: manifest.json at the zip root and
+claude.ai only (the chatgpt.com and gemini.google.com scripts, their status
+pages and their wording are left out until they are tested). The build fails
+if anything for those sites is left in the manifest or a file it names is
+missing.
+
 Refuses to build when the plugin and extension versions disagree.
 """
 from __future__ import annotations
@@ -50,6 +58,68 @@ ETA_NAME = {
 }
 
 
+#: --store build: extension files left out (chatgpt.com and gemini.google.com only).
+STORE_SKIP = {"chatgpt.js", "chatgpt_tap.js", "gemini.js", "lib/chatgpt_sse.js", "lib/gemini_dom.js"}
+STORE_HOSTS = ("https://claude.ai/", "https://status.claude.com/")
+STORE_DESCRIPTION = ("Shows how long replies on claude.ai usually take you, "
+                     "as a range from your own past replies.")
+#: --store build: options page text for the sites it no longer covers.
+STORE_TEXT = {
+    "options.html": [
+        ("Check Claude, ChatGPT and Gemini status", "Check Claude status"),
+        ("Reads status.claude.com (on claude.ai) and status.openai.com (on chatgpt.com) and Google's "
+         "status dashboard, www.google.com/appsstatus (on gemini.google.com), every 2 minutes",
+         "Reads status.claude.com every 2 minutes"),
+        ("Clear removes the claude.ai, chatgpt.com and gemini.google.com histories.",
+         "Clear removes the claude.ai history."),
+        ("It is not made, endorsed or supported by Anthropic, OpenAI or Google.",
+         "It is not made, endorsed or supported by Anthropic."),
+    ],
+}
+
+
+def store_manifest(data: bytes) -> bytes:
+    """manifest.json for the store build: claude.ai content script and status page only."""
+    m = json.loads(data)
+    m["description"] = STORE_DESCRIPTION
+    m["content_scripts"] = [c for c in m["content_scripts"]
+                            if all(u.startswith(STORE_HOSTS) for u in c["matches"])]
+    m["host_permissions"] = [u for u in m.get("host_permissions", []) if u.startswith(STORE_HOSTS)]
+    for r in m.get("web_accessible_resources", []):
+        r["matches"] = [u for u in r["matches"] if u.startswith(STORE_HOSTS)]
+    text = json.dumps(m, indent=2, ensure_ascii=False) + "\n"
+    for word in ("chatgpt", "openai", "gemini", "google.com"):
+        if word in text.lower():
+            raise SystemExit("store manifest still mentions %r" % word)
+    if not m["content_scripts"]:
+        raise SystemExit("store manifest has no claude.ai content script")
+    return text.encode("utf-8")
+
+
+def build_store_zip(src: str, dest: str) -> None:
+    """The Web Store upload: files at the zip root, claude.ai only."""
+    names = []
+    with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as z:
+        for path in files_under(src):
+            rel = os.path.relpath(path, src).replace(os.sep, "/")
+            if rel in STORE_SKIP:
+                continue
+            with open(path, "rb") as f:
+                data = f.read()
+            data = store_manifest(data) if rel == "manifest.json" else swap_text(data, rel, STORE_TEXT)
+            info = zipfile.ZipInfo(rel, date_time=FIXED_TIME)
+            info.external_attr = 0o644 << 16
+            info.compress_type = zipfile.ZIP_DEFLATED
+            z.writestr(info, data)
+            names.append(rel)
+        m = json.loads(z.read("manifest.json"))
+    wanted = [js for c in m["content_scripts"] for js in c["js"]]
+    wanted += [m["background"]["service_worker"], m["options_ui"]["page"]] + list(m["icons"].values())
+    missing = sorted(set(wanted) - set(names))
+    if missing:
+        raise SystemExit("store build is missing files the manifest names: %s" % missing)
+
+
 def versions() -> dict:
     with open(os.path.join(HERE, "plugin", ".claude-plugin", "plugin.json")) as f:
         plugin = json.load(f)["version"]
@@ -77,7 +147,7 @@ def swap_text(data: bytes, rel: str, swaps: dict) -> bytes:
     text = data.decode("utf-8")
     for old, new in pairs:
         if old not in text:
-            raise SystemExit("%s: %r not found, update ETA_NAME in release.py" % (rel, old))
+            raise SystemExit("%s: %r not found, update the text swaps in release.py" % (rel, old))
         text = text.replace(old, new)
     return text.encode("utf-8")
 
@@ -118,6 +188,10 @@ def main() -> int:
         name = "raindragon-eta-extension-%s.zip" % version
         build_zip(os.path.join(HERE, "extension"), os.path.join(dist, name),
                   "raindragon-eta-extension/", ETA_NAME)
+        built.append(name)
+    if "--store" in sys.argv[1:]:
+        name = "raindragon-forecast-store-%s.zip" % version
+        build_store_zip(os.path.join(HERE, "extension"), os.path.join(dist, name))
         built.append(name)
     with open(os.path.join(dist, "SHA256SUMS"), "w") as f:
         for name in built:

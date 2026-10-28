@@ -1,7 +1,11 @@
 const T = self.RainDragonEta;
 const DEFAULTS = { enabled: true, band: "50", checkStatus: true, showResult: false };
 const $ = (id) => document.getElementById(id);
-const PROVS = Object.values(T.PROVIDERS);   // claude.ai, chatgpt.com, gemini.google.com: separate histories
+// claude.ai, chatgpt.com, gemini.google.com: separate histories. Only the sites this build has a
+// content script for are listed (the Web Store build is claude.ai only).
+const BUILD_SITES = (chrome.runtime.getManifest().content_scripts || []).flatMap((c) => c.matches);
+const PROVS = Object.values(T.PROVIDERS)
+  .filter((p) => BUILD_SITES.some((u) => u.startsWith("https://" + p.site + "/")));
 let state = { settings: DEFAULTS, histories: {} };
 
 function flash(text) {
